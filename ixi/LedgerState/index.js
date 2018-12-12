@@ -1,7 +1,13 @@
 
+var System = java.lang.System;
+var SnapshotServiceImpl = com.iota.iri.service.snapshot.impl.SnapshotServiceImpl;
+
 var iri = com.iota.iri;
 var tracker = IOTA.milestoneTracker
 var snapshot = tracker.latestSnapshot;
+
+var snapshotProvider = IOTA.snapshotProvider;
+var snapshotService = new SnapshotServiceImpl();
 
 var Files = java.nio.file.Files;
 var Paths = java.nio.file.Paths;
@@ -20,18 +26,30 @@ var STATE_FILE_NAME = "ledgerState";
 function writeLedgerState(ledgerState) {
     try {
     	var balances = [];
+
+    	System.out.println(ledgerState.getBalances().size())
     	for each (var balanceEntry in ledgerState.getBalances().entrySet()){
-    		if (entry.getValue() != 0){
-    			balances.push(entry.getKey() + ";" + entry.getValue())
+    		if (balanceEntry.getValue() != 0){
+    			balances.push(balanceEntry.getKey() + ";" + balanceEntry.getValue())
     		}
         }
 
         Files.write(
-                Paths.get(STATE_FILE_NAME),
-                balances
+            Paths.get(STATE_FILE_NAME + "-" + ledgerState.getIndex()),
+            balances
+            /*ledgerState.getBalances().entrySet()
+		        .stream()
+		        .filter(function(entry){
+		        	return entry.getValue() != 0
+		        })
+		        .map(function(entry){ //<CharSequence>
+		        	return entry.getKey() + ";" + entry.getValue()
+		    	})
+		        .sorted()
+		        .iterator()*/
         );
     } catch (exception) {
-        System.out.println("error");
+        System.out.println("error: " + exception);
     }
 }
 
@@ -39,7 +57,7 @@ function writeLedgerState(ledgerState) {
  * Gets the ledger state from the IRI instance
  */
 function getLedgerState(){
-
+	return snapshotProvider.getLatestSnapshot();
 }
 
 /**
@@ -50,16 +68,20 @@ function getLedgerState(){
  * @param epochTime the time of this milestone index in milliseconds
  */
 function updateLedgerState(ledgerState, milestoneIndex, epochTime){
-
+	if (tracker.latestSolidSubtangleMilestoneIndex > milestoneIndex){
+		snapshotService.rollBackMilestones(IOTA.tangle, ledgerState, milestoneIndex);
+	} else {
+		snapshotService.replayMilestones(IOTA.tangle, ledgerState, milestoneIndex);
+	}
 }
 
 function getSnapshot(request) {
 	var milestoneIndex = request['milestoneIndex'];
 	var epochTime = request['milestoneEpoch'];
 
-	var ledgerState = this.getLedgerState();
-	this.updateLedgerState(ledgerState, milestoneIndex, epochTime);
-	this.writeLedgerState(ledgerState);
+	var ledgerState = getLedgerState();
+	updateLedgerState(ledgerState, milestoneIndex, epochTime);
+	writeLedgerState(ledgerState);
 
     return Response.create({
         epochTime: epochTime,

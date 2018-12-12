@@ -14,6 +14,7 @@ var Paths = java.nio.file.Paths;
 
 var Callable = iri.service.CallableRequest;
 var Response = iri.service.dto.IXIResponse;
+var ErrorResponse = iri.service.dto.ErrorResponse;
 
 var STATE_FILE_NAME = "ledgerState";
 
@@ -23,7 +24,7 @@ var STATE_FILE_NAME = "ledgerState";
  *
  * @param ledgerState state object that shall be written
  */
-function writeLedgerState(ledgerState) {
+function writeLedgerState(ledgerState, location) {
     try {
     	var balances = [];
 
@@ -35,7 +36,7 @@ function writeLedgerState(ledgerState) {
         }
 
         Files.write(
-            Paths.get(STATE_FILE_NAME + "-" + ledgerState.getIndex()),
+            Paths.get(location, STATE_FILE_NAME + "-" + ledgerState.getIndex()),
             balances
             /*ledgerState.getBalances().entrySet()
 		        .stream()
@@ -78,17 +79,26 @@ function updateLedgerState(ledgerState, milestoneIndex, epochTime){
 function getSnapshot(request) {
 	var milestoneIndex = request['milestoneIndex'];
 	var epochTime = request['milestoneEpoch'];
+	var location = request['url'];
+	if (location == null){
+		location = "";
+	}
 
-	var ledgerState = getLedgerState();
-	updateLedgerState(ledgerState, milestoneIndex, epochTime);
-	writeLedgerState(ledgerState);
+	try {
+		var ledgerState = getLedgerState();
+		updateLedgerState(ledgerState, milestoneIndex, epochTime);
+		writeLedgerState(ledgerState, location);
 
-    return Response.create({
-        epochTime: epochTime,
-        milestoneIndex: milestoneIndex,
-        snapshotIndex: snapshot.index(),
-        latestSolidIndex: tracker.latestSolidSubtangleMilestoneIndex
-    });
+	    return Response.create({
+	        epochTime: epochTime,
+	        milestoneIndex: milestoneIndex,
+	        snapshotIndex: snapshot.index(),
+	        latestSolidIndex: tracker.latestSolidSubtangleMilestoneIndex
+	    });
+	} catch (exception) {
+        return ErrorResponse.create(exception);
+    }
+	
 }
 
 API.put("getState", new Callable({ call: getSnapshot }))

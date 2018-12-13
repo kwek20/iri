@@ -1,17 +1,17 @@
 
 var System = java.lang.System;
-var SnapshotServiceImpl = com.iota.iri.service.snapshot.impl.SnapshotServiceImpl;
 
-var iri = com.iota.iri;
-var tracker = IOTA.milestoneTracker
-var snapshot = tracker.latestSnapshot;
-
-var snapshotProvider = IOTA.snapshotProvider;
-var snapshotService = new SnapshotServiceImpl();
+var FileWriter = java.io.FileWriter;
 
 var Files = java.nio.file.Files;
 var Paths = java.nio.file.Paths;
 
+var tracker 				= IOTA.latestMilestoneTracker
+
+var snapshotProvider 		= IOTA.snapshotProvider;
+var snapshotService 		= IOTA.snapshotService;
+
+var iri = com.iota.iri;
 var Callable = iri.service.CallableRequest;
 var Response = iri.service.dto.IXIResponse;
 var ErrorResponse = iri.service.dto.ErrorResponse;
@@ -26,39 +26,55 @@ var STATE_FILE_NAME = "ledgerState";
  */
 function writeLedgerState(ledgerState, location) {
     try {
-    	var balances = [];
+		var path = Paths.get(location, STATE_FILE_NAME + "-" + ledgerState.getIndex());
+        var fw;
+        try {
+        	fw = new FileWriter(path.toString());
+	        var i = 0;
+	    	for each (var balanceEntry in ledgerState.getBalances().entrySet()){
+	    		if (balanceEntry.getValue() != 0){
+	    			var line = balanceEntry.getKey().toString() + ";" + balanceEntry.getValue();
+	    			fw.write(line + "\n");   	
+	    		}
 
-    	System.out.println(ledgerState.getBalances().size())
-    	for each (var balanceEntry in ledgerState.getBalances().entrySet()){
-    		if (balanceEntry.getValue() != 0){
-    			balances.push(balanceEntry.getKey() + ";" + balanceEntry.getValue())
-    		}
-        }
+	    		if (++i > 500){
+	    			break;
+	    		}
 
-        Files.write(
+	        }
+	        fw.close();
+		} catch(error) {
+			fw.close();
+			throw error;
+		}
+
+		return path;
+        /*
+		// Apparently this is not a charsequence iterator
+        return Files.write(
             Paths.get(location, STATE_FILE_NAME + "-" + ledgerState.getIndex()),
-            balances
-            /*ledgerState.getBalances().entrySet()
+            //balances
+            ledgerState.getBalances().entrySet()
 		        .stream()
 		        .filter(function(entry){
-		        	return entry.getValue() != 0
+		        	return entry.getValue() != 0 && ++i < 50;
 		        })
 		        .map(function(entry){ //<CharSequence>
 		        	return entry.getKey() + ";" + entry.getValue()
 		    	})
 		        .sorted()
-		        .iterator()*/
-        );
+		        .iterator()
+        );*/
     } catch (exception) {
         System.out.println("error: " + exception);
     }
 }
 
 /**
- * Gets the ledger state from the IRI instance
+ * Gets a copy of the ledger state from the IRI instance
  */
 function getLedgerState(){
-	return snapshotProvider.getLatestSnapshot();
+	return snapshotProvider.getLatestSnapshot().clone();
 }
 
 /**
@@ -69,36 +85,53 @@ function getLedgerState(){
  * @param epochTime the time of this milestone index in milliseconds
  */
 function updateLedgerState(ledgerState, milestoneIndex, epochTime){
-	if (tracker.latestSolidSubtangleMilestoneIndex > milestoneIndex){
-		snapshotService.rollBackMilestones(IOTA.tangle, ledgerState, milestoneIndex);
-	} else {
-		snapshotService.replayMilestones(IOTA.tangle, ledgerState, milestoneIndex);
+	if (ledgerState.getIndex() > milestoneIndex){
+		snapshotService.rollBackMilestones(ledgerState, milestoneIndex);
+	} else if (ledgerState.getIndex() < milestoneIndex){
+		snapshotService.replayMilestones(ledgerState, milestoneIndex);
 	}
 }
 
+
+/*
+curl http://localhost:14265 -X POST -H 'X-IOTA-API-Version: 1.4.1' -H 'Content-Type: application/json' -d '{"command": "LedgerState.getState", "milestoneEpoch": "0", "milestoneIndex": ""}'
+*/
 function getSnapshot(request) {
-	var milestoneIndex = request['milestoneIndex'];
+	var milestoneIndex = parseInt(request['milestoneIndex']);
 	var epochTime = request['milestoneEpoch'];
+
+	if (!milestoneIndex || !epochTime){
+		return ErrorResponse.create("We need both 'milestoneIndex' and 'milestoneEpoch' in order to work.");
+	} else if (milestoneIndex < snapshotProvider.getInitialSnapshot().getIndex()){
+		return ErrorResponse.create("Milestone index is too old. (min: " + snapshotProvider.getInitialSnapshot().getIndex() + ")");
+	} else if (milestoneIndex > tracker.getLatestMilestoneIndex()){
+		return ErrorResponse.create("We dont have this milestone yet. (max: " + tracker.getLatestMilestoneIndex() + ")");
+	}
+
 	var location = request['url'];
-	if (location == null){
+	if (!location){
 		location = "";
 	}
 
 	try {
 		var ledgerState = getLedgerState();
-		updateLedgerState(ledgerState, milestoneIndex, epochTime);
-		writeLedgerState(ledgerState, location);
 
+		updateLedgerState(ledgerState, milestoneIndex, epochTime);
+		
+		if (ledgerState.getIndex() !== milestoneIndex){
+			return ErrorResponse.create("Failed to change to milestone");
+		} else if (snapshotProvider.getLatestSnapshot().getIndex() !== milestoneIndex && ledgerState.equals(snapshotProvider.getLatestSnapshot())){
+			return ErrorResponse.create("Nothing changed during updating...");
+		}
+
+		var path = writeLedgerState(ledgerState, location);
 	    return Response.create({
-	        epochTime: epochTime,
-	        milestoneIndex: milestoneIndex,
-	        snapshotIndex: snapshot.index(),
-	        latestSolidIndex: tracker.latestSolidSubtangleMilestoneIndex
+	        ledgerStatePath: path.toAbsolutePath().toString()
 	    });
 	} catch (exception) {
         return ErrorResponse.create(exception);
     }
-	
 }
 
 API.put("getState", new Callable({ call: getSnapshot }))
+

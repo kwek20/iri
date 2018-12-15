@@ -6,10 +6,13 @@ var FileWriter = java.io.FileWriter;
 var Files = java.nio.file.Files;
 var Paths = java.nio.file.Paths;
 
-var tracker 			= IOTA.latestMilestoneTracker
+var MilestoneViewModel = com.iota.iri.controllers.MilestoneViewModel
 
+var tracker 			= IOTA.latestMilestoneTracker;
+var tangle 				= IOTA.tangle;
 var snapshotProvider 	= IOTA.snapshotProvider;
 var snapshotService 	= IOTA.snapshotService;
+var ledgerService		= IOTA.ledgerService;
 
 var iri = com.iota.iri;
 var Callable = iri.service.CallableRequest;
@@ -43,22 +46,6 @@ function writeLedgerState(ledgerState, location) {
 		}
 
 		return path;
-        /*
-		// Apparently this is not a charsequence iterator
-        return Files.write(
-            Paths.get(location, STATE_FILE_NAME + "-" + ledgerState.getIndex()),
-            //balances
-            ledgerState.getBalances().entrySet()
-		        .stream()
-		        .filter(function(entry){
-		        	return entry.getValue() != 0 && ++i < 50;
-		        })
-		        .map(function(entry){ //<CharSequence>
-		        	return entry.getKey() + ";" + entry.getValue()
-		    	})
-		        .sorted()
-		        .iterator()
-        );*/
     } catch (exception) {
         throw exception;
     }
@@ -94,10 +81,6 @@ function getSnapshot(request) {
 	var milestoneIndex = parseInt(request['milestoneIndex']);
 	var epochTime = request['milestoneEpoch'];
 
-	var SnapshotImpl = Java.type("com.iota.iri.service.snapshot.impl.SnapshotImpl");
-	var stateField = SnapshotImpl.class.getDeclaredField("state");
-	stateField.setAccessible(true);
-
 	if (!milestoneIndex || !epochTime){
 		return ErrorResponse.create("We need both 'milestoneIndex' and 'milestoneEpoch' in order to work.");
 	} else if (milestoneIndex < snapshotProvider.getInitialSnapshot().getIndex()){
@@ -113,33 +96,28 @@ function getSnapshot(request) {
 
 	try {
 		var ledgerState = getLedgerState();
+
+		if (ledgerState.getIndex() !== milestoneIndex && !snapshotProvider.getLatestSnapshot().isConsistent()){
+			return ErrorResponse.create("You cant make a snapshot when the ledger is inconsistent");
+		}
 		updateLedgerState(ledgerState, milestoneIndex, epochTime);
-
-		System.out.println(snapshotProvider.getInitialSnapshot());
-		System.out.println(snapshotProvider.getInitialSnapshot().state);
-
-		System.out.println(ledgerState.state);
-		System.out.println(snapshotProvider.getLatestSnapshot());
-		System.out.println(snapshotProvider.getLatestSnapshot().state);
-		System.out.println(ledgerState.equals(snapshotProvider.getLatestSnapshot()));
-		System.out.println(snapshotProvider.getLatestSnapshot().getIndex());
-		System.out.println(milestoneIndex);
-
+		
+		//This doesnt allow snapshotting of current 
+		//var milestone = MilestoneViewModel.get(tangle, milestoneIndex);
+		//var ledgerState = snapshotService.generateSnapshot(tracker, milestone);
+		
 		if (ledgerState.getIndex() !== milestoneIndex){
 			return ErrorResponse.create("Failed to change to milestone");
 		} else if (snapshotProvider.getLatestSnapshot().getIndex() != milestoneIndex && ledgerState.equals(snapshotProvider.getLatestSnapshot())){
-			return ErrorResponse.create("Nothing changed during updating...");
+			return ErrorResponse.create("Nothing changed during updating. Missing StateDiff in database?");
 		}
 
 		var path = writeLedgerState(ledgerState, location);
-
-		stateField.setAccessible(false);
 	    return Response.create({
 	        ledgerStatePath: path.toAbsolutePath().toString()
 	    });
 	} catch (exception) {
-		stateField.setAccessible(false);
-        return ErrorResponse.create(exception);
+        return ErrorResponse.create(exception.getCause());
     }
 }
 

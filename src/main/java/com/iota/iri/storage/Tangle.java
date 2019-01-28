@@ -134,7 +134,7 @@ public class Tangle {
             Set<Indexable> output = null;
             for(PersistenceProvider provider: this.persistenceProviders) {
                 output = provider.keysStartingWith(modelClass, value);
-                if(output.size() != 0) {
+                if(output != null && output.size() != 0) {
                     break;
                 }
             }

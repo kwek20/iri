@@ -128,7 +128,8 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
      *
      * @param latestMilestoneTracker tracker for the milestones to determine when a new local snapshot is due
      */
-    private void monitorThread(LatestMilestoneTracker latestMilestoneTracker) {
+    //Package Private For Testing
+    void monitorThread(LatestMilestoneTracker latestMilestoneTracker) {
         while (!Thread.currentThread().isInterrupted()) {
             int localSnapshotInterval = getSnapshotInterval(isInSync(latestMilestoneTracker));
 
@@ -143,6 +144,7 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
                 }
             }
 
+            
             ThreadUtils.sleep(LOCAL_SNAPSHOT_RESCAN_INTERVAL);
         }
     }
@@ -154,38 +156,42 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
      * @param inSync if this node is in sync
      * @return the current interval in which we take local snapshots
      */
-    private int getSnapshotInterval(boolean inSync) {
+    //Package Private For Testing
+    int getSnapshotInterval(boolean inSync) {
         return inSync
                 ? config.getLocalSnapshotsIntervalSynced()
                 : config.getLocalSnapshotsIntervalUnsynced();
     }
-    
+
     /**
-     * A node is defined in sync when the latest snapshot milestone index and the latest milestone index are equal.
-     * In order to prevent a bounce between in and out of sync, a buffer is added when a node became in sync.
+     * A node is defined in sync when the latest snapshot milestone index and the
+     * latest milestone index are equal. In order to prevent a bounce between in and
+     * out of sync, a buffer is added when a node became in sync.
      * 
-     * This will always return false if we are not done scanning milestone candidates during initialization.
+     * This will always return false if we are not done scanning milestone
+     * candidates during initialization.
      * 
      * @param latestMilestoneTracker tracker we use to determine milestones
      * @return <code>true</code> if we are in sync, otherwise <code>false</code>
      */
-    private boolean isInSync(LatestMilestoneTracker latestMilestoneTracker) {
+    // Package Private For Testing
+    boolean isInSync(LatestMilestoneTracker latestMilestoneTracker) {
         if (!latestMilestoneTracker.isInitialScanComplete()) {
             return false;
         }
-        
+
         int latestIndex = latestMilestoneTracker.getLatestMilestoneIndex();
         int latestSnapshot = snapshotProvider.getLatestSnapshot().getIndex();
-        
+
         // If we are out of sync, only a full sync will get us in
         if (!isInSync && latestIndex == latestSnapshot) {
             isInSync = true;
-        
-        // When we are in sync, only dropping below the buffer gets us out of sync 
+
+            // When we are in sync, only dropping below the buffer gets us out of sync
         } else if (latestSnapshot < latestIndex - LOCAL_SNAPSHOT_SYNC_BUFFER) {
             isInSync = false;
         }
-        
+
         return isInSync;
     }
 }

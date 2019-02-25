@@ -17,7 +17,7 @@ public class TransactionTest {
         
         Transaction newtx = new Transaction();
         newtx.read(t.bytes());
-        newtx.readMetadata(newtx.bytes);
+        newtx.readMetadata(t.metadata());
         
         assertArrayEquals(t.metadata(), newtx.metadata());
     }
@@ -29,12 +29,19 @@ public class TransactionTest {
         Converter.bytes(trits, bytes);
         
         TransactionViewModel TVM = new TransactionViewModel(trits, Hash.NULL_HASH);
+        TVM.getAddressHash();
+        TVM.getTrunkTransactionHash();
+        TVM.getBranchTransactionHash();
+        TVM.getBundleHash();
+        TVM.getTagValue();
+        TVM.getObsoleteTagValue();
+        TVM.setAttachmentData();
+        TVM.setMetadata();
+        
         assertArrayEquals(TVM.getBytes(), bytes);
         
-        Transaction transaction = new Transaction();
-        transaction.read(bytes);
-        transaction.readMetadata( transaction.bytes);
+        Transaction tvmTransaction = TVM.getTransaction();
         
-        assertEquals(transaction.branch, TVM.getTransaction().branch);
+        assertEquals(tvmTransaction.branch, TVM.getTransaction().branch);
     }
 }

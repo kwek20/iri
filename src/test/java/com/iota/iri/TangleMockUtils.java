@@ -72,7 +72,7 @@ public class TangleMockUtils {
             address = TransactionTestUtils.nextWord(address);
             Converter.trits(address, trits, TransactionViewModel.ADDRESS_TRINARY_OFFSET);
             if (tx != null) {
-                TransactionTestUtils.getTransactionTritsWithTrunkAndBranch(trits, tx.getHash(), Hash.NULL_HASH);
+                TransactionTestUtils.getRandomTransactionTritsWithTrunkAndBranch(trits, tx.getHash(), Hash.NULL_HASH);
             }
             TransactionTestUtils.setLastIndex(trits, lastIndex);
             TransactionTestUtils.setCurrentIndex(trits, currentIndex--);

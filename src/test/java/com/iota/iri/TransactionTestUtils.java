@@ -24,7 +24,17 @@ public class TransactionTestUtils {
      * @param currentIndex The new index to set the transaction to
      */
     public static void setCurrentIndex(TransactionViewModel tx, long currentIndex) {
-        Converter.copyTrits(currentIndex, tx.trits(), TransactionViewModel.CURRENT_INDEX_TRINARY_OFFSET,
+        setCurrentIndex(tx.trits(), currentIndex);
+    }
+    
+    /**
+     * Updates the transaction index trits.
+     * 
+     * @param trits The trits to update
+     * @param currentIndex The new index to set the transaction to
+     */
+    public static void setCurrentIndex(byte[] trits, long currentIndex) {
+        Converter.copyTrits(currentIndex, trits, TransactionViewModel.CURRENT_INDEX_TRINARY_OFFSET,
                 TransactionViewModel.CURRENT_INDEX_TRINARY_SIZE);
     }
 
@@ -35,7 +45,17 @@ public class TransactionTestUtils {
      * @param lastIndex The new last index to set the transaction to
      */
     public static void setLastIndex(TransactionViewModel tx, long lastIndex) {
-        Converter.copyTrits(lastIndex, tx.trits(), TransactionViewModel.LAST_INDEX_TRINARY_OFFSET,
+        setLastIndex(tx.trits(), lastIndex);
+    }
+
+    /**
+     * Updates the last transaction index trits.
+     * 
+     * @param trits The trits to update
+     * @param currentIndex The new last index to set the transaction to
+     */
+    public static void setLastIndex(byte[] trits, long lastIndex) {
+        Converter.copyTrits(lastIndex, trits, TransactionViewModel.LAST_INDEX_TRINARY_OFFSET,
                 TransactionViewModel.LAST_INDEX_TRINARY_SIZE);
     }
 
@@ -84,6 +104,17 @@ public class TransactionTestUtils {
     public static TransactionViewModel createTransactionWithTrytes(String trytes) {
         String expandedTrytes  = expandTrytes(trytes);
         byte[] trits = Converter.allocatingTritsFromTrytes(expandedTrytes);
+        return createTransactionFromTrits(trits);
+    }
+
+    /**
+     * Creates a {@link TransactionViewModel}  from the supplied trits.
+     * Trits are not checked for size and content.
+     * 
+     * @param trits The transaction trits
+     * @return The transaction
+     */
+    public static TransactionViewModel createTransactionFromTrits(byte[] trits) {
         return new TransactionViewModel(trits, TransactionHash.calculate(SpongeFactory.Mode.CURLP81, trits));
     }
 
@@ -99,7 +130,7 @@ public class TransactionTestUtils {
      */
     public static TransactionViewModel createTransactionWithTrunkAndBranch(String trytes, Hash trunk, Hash branch) {
         byte[] trits = createTransactionWithTrunkAndBranchTrits(trytes, trunk, branch);
-        return new TransactionViewModel(trits, TransactionHash.calculate(SpongeFactory.Mode.CURLP81, trits));
+        return createTransactionFromTrits(trits);
     }
     
     /**
@@ -146,7 +177,8 @@ public class TransactionTestUtils {
 
     /**
      * Increases a char with the next char in the alphabet, until the char is Z.
-     * When the char is Z, adds a new char starting at A (So no 9 is used).
+     * When the char is Z, adds a new char starting at A.
+     * 9 turns To A.
      * 
      * @param trytes The Trytes to change.
      * @return The changed trytes
@@ -157,7 +189,10 @@ public class TransactionTestUtils {
         }
         char[] chars = trytes.toUpperCase().toCharArray();
         for (int i = chars.length -1; i>=0; --i) {
-            if (chars[i] != 'Z') {
+            if (chars[i] == '9') {
+                chars[i] = 'A';
+            }
+            else if (chars[i] != 'Z') {
                 ++chars[i];
                 return new String(chars);
             }

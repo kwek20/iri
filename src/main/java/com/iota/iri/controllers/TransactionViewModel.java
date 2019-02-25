@@ -399,6 +399,20 @@ public class TransactionViewModel {
         }
         return tangle.saveBatch(batch);
     }
+    
+    /**
+     * Creates a copy of the underlying {@link Transaction} object.
+     * 
+     * @return the transaction object
+     */
+    public Transaction getTransaction() {
+        Transaction t = new Transaction();
+        
+        // Read does a copy
+        t.read(getBytes());
+        t.readMetadata(transaction.metadata());
+        return t;
+    }
 
     /**
      * Gets the {@link ApproveeViewModel} of a {@link Transaction}. If the current {@link ApproveeViewModel} is null, a
@@ -502,19 +516,6 @@ public class TransactionViewModel {
             transaction.address = HashFactory.ADDRESS.create(trits(), ADDRESS_TRINARY_OFFSET);
         }
         return transaction.address;
-    }
-    
-    /**
-     * 
-     * @return a copy of the underlying transaction opject
-     */
-    public Transaction getTransaction() {
-        Transaction t = new Transaction();
-        
-        // Read does a copy
-        t.read(getBytes());
-        t.readMetadata(transaction.metadata());
-        return t;
     }
 
     /**

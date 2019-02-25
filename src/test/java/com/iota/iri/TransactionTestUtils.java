@@ -213,6 +213,23 @@ public class TransactionTestUtils {
 
         return buildTransaction(trits);
     }
+    
+    
+    /**
+     * Generates a transaction with trunk and hash.
+     * 
+     * @param trunk The trunk transaction hash
+     * @param branch The branch transaction hash
+     * @return The transaction
+     */
+    public static Transaction createRandomTransactionWithTrunkAndBranch(Hash trunk, Hash branch) {
+        byte[] trits = getRandomTrits(TransactionViewModel.TRINARY_SIZE);
+        System.arraycopy(trunk.trits(), 0, trits, TransactionViewModel.TRUNK_TRANSACTION_TRINARY_OFFSET,
+                TransactionViewModel.TRUNK_TRANSACTION_TRINARY_SIZE);
+        System.arraycopy(branch.trits(), 0, trits, TransactionViewModel.BRANCH_TRANSACTION_TRINARY_OFFSET,
+                TransactionViewModel.BRANCH_TRANSACTION_TRINARY_SIZE);
+        return buildTransaction(trits);
+    }
 
     /**
      * Generates random trits for a transaction.

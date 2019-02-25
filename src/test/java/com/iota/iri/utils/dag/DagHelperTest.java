@@ -2,48 +2,111 @@ package com.iota.iri.utils.dag;
 
 import static org.junit.Assert.*;
 
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+
+import com.iota.iri.TangleMockUtils;
+import com.iota.iri.TransactionTestUtils;
+import com.iota.iri.controllers.TransactionViewModel;
+import com.iota.iri.model.Hash;
+import com.iota.iri.model.persistables.Approvee;
+import com.iota.iri.model.persistables.Transaction;
+import com.iota.iri.storage.Persistable;
+import com.iota.iri.storage.Tangle;
 
 public class DagHelperTest {
+    
+    private static final Hash A = TransactionTestUtils.getRandomTransactionHash();
+    private static final Hash B = TransactionTestUtils.getRandomTransactionHash();
+    private static final Hash C = TransactionTestUtils.getRandomTransactionHash();
+    private static final Hash D = TransactionTestUtils.getRandomTransactionHash();
+    
+    private static final Transaction TX1 = TransactionTestUtils
+            .createRandomTransactionWithTrunkAndBranch(Hash.NULL_HASH, Hash.NULL_HASH); // Hash.NULL_HASH, 
+    private static final Transaction TX2 = TransactionTestUtils
+            .createRandomTransactionWithTrunkAndBranch(Hash.NULL_HASH, B); //A
+    private static final Transaction TX3 = TransactionTestUtils
+            .createRandomTransactionWithTrunkAndBranch( A, B); //C
+    
+    @Rule 
+    public MockitoRule mockitoRule = MockitoJUnit.rule();
+    
+    @Mock
+    private Tangle tangle;
+
+    private DAGHelper helper;
 
     @Before
     public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
+        helper = new DAGHelper(tangle);
     }
 
     @Test
     public void testGet() {
-        fail("Not yet implemented");
+        // We reuse the instanced
+        assertEquals(helper, DAGHelper.get(tangle));
     }
 
     @Test
-    public void testDAGHelper() {
-        fail("Not yet implemented");
+    public void testTraverseApprovers() throws Exception {
+        TangleMockUtils.mockTransaction(tangle, Hash.NULL_HASH, TX1);
+        TangleMockUtils.mockTransaction(tangle, A, TX2);
+        TangleMockUtils.mockTransaction(tangle, C, TX3);
+        
+        List<TransactionViewModel> processed = new LinkedList<>();
+        
+        helper.traverseApprovers(Hash.NULL_HASH, transaction -> {
+            return true;
+        }, t -> {
+            processed.add(t);
+        }, Collections.EMPTY_SET);
+        
+        assertTrue(processed.size() == 1);
+        
+        TransactionViewModel tx = processed.get(0);
+        assertEquals(tx.getHash(), C);
+        assertEquals(tx.getAddressHash(), TX3.address);
+        assertEquals(tx.getAttachmentTimestamp(), TX3.attachmentTimestamp);
+        assertEquals(tx.getBytes(), TX3.bytes());
     }
+        
 
     @Test
-    public void testTraverseApproversHashPredicateOfTransactionViewModelConsumerOfTransactionViewModelSetOfHash() {
-        fail("Not yet implemented");
-    }
+    public void testTraverseApprovees() throws Exception {
+        TangleMockUtils.mockTransaction(tangle, Hash.NULL_HASH, TX1);
+        TangleMockUtils.mockTransaction(tangle, A, TX2);
+        TangleMockUtils.mockTransaction(tangle, C, TX3);
 
-    @Test
-    public void testTraverseApproversHashPredicateOfTransactionViewModelConsumerOfTransactionViewModel() {
-        fail("Not yet implemented");
-    }
-
-    @Test
-    public void testTraverseApproveesHashPredicateOfTransactionViewModelThrowingConsumerOfTransactionViewModelQextendsExceptionSetOfHash() {
-        fail("Not yet implemented");
-    }
-
-    @Test
-    public void testTraverseApproveesHashPredicateOfTransactionViewModelThrowingConsumerOfTransactionViewModelQextendsException() {
-        fail("Not yet implemented");
+        Mockito.when(tangle.load(Approvee.class, Hash.NULL_HASH)).thenReturn(new Approvee(A));
+        Mockito.when(tangle.load(Approvee.class, A)).thenReturn(new Approvee(C));
+        
+        List<TransactionViewModel> processed = new LinkedList<>();
+        Set<Hash> n = Collections.EMPTY_SET;
+        
+        helper.traverseApprovees(C, transaction -> {
+            return true;
+        }, t -> {
+            processed.add(t);
+        }, n);
+        
+        assertTrue(processed.size() == 1);
+        
+        TransactionViewModel tx = processed.get(0);
+        assertEquals(tx.getHash(), Hash.NULL_HASH);
+        assertEquals(tx.getAddressHash(), TX1.address);
+        assertEquals(tx.getAttachmentTimestamp(), TX1.attachmentTimestamp);
+        assertEquals(tx.getBytes(), TX1.bytes());
     }
 
 }

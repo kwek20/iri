@@ -62,7 +62,7 @@ public class TangleMockUtils {
      * This transaction is returned when the hash is asked to load in the tangle object
      * 
      * @param tangle mocked tangle object that shall retrieve a milestone object when being queried for it
-     * @param hash
+     * @param hash transaction hash
      * @return The newly created (empty) transaction
      */
     public static Transaction mockTransaction(Tangle tangle, Hash hash) {

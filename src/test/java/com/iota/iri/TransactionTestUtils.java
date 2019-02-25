@@ -15,7 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TransactionTestUtils {
 
-    private static Random seed = new Random();
+    private static Random seed = new Random(1);
     
     /**
      * Updates the transaction index in trits.
@@ -193,6 +193,23 @@ public class TransactionTestUtils {
         byte[] trits = new byte[TransactionViewModel.TRINARY_SIZE];
         Arrays.fill(trits, (byte) 0);
 
+        return buildTransaction(trits);
+    }
+    
+    
+    /**
+     * Generates a transaction with trunk and hash.
+     * 
+     * @param trunk The trunk transaction hash
+     * @param branch The branch transaction hash
+     * @return The transaction
+     */
+    public static Transaction createRandomTransactionWithTrunkAndBranch(Hash trunk, Hash branch) {
+        byte[] trits = getRandomTrits(TransactionViewModel.TRINARY_SIZE);
+        System.arraycopy(trunk.trits(), 0, trits, TransactionViewModel.TRUNK_TRANSACTION_TRINARY_OFFSET,
+                TransactionViewModel.TRUNK_TRANSACTION_TRINARY_SIZE);
+        System.arraycopy(branch.trits(), 0, trits, TransactionViewModel.BRANCH_TRANSACTION_TRINARY_OFFSET,
+                TransactionViewModel.BRANCH_TRANSACTION_TRINARY_SIZE);
         return buildTransaction(trits);
     }
 

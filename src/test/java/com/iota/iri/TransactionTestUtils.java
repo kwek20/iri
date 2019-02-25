@@ -83,13 +83,15 @@ public class TransactionTestUtils {
      * @return A transaction in the same bundle as trunk, with its index 1 below trunk index
      */
     public static TransactionViewModel createTransactionWithTrunkBundleHash(TransactionViewModel trunkTx, Hash branchHash) {
-        TransactionViewModel tx = new TransactionViewModel(
-                getRandomTransactionWithTrunkAndBranch(trunkTx.getHash(), branchHash),
-                getRandomTransactionHash());
-        setCurrentIndex(tx, trunkTx.getCurrentIndex() - 1);
-        setLastIndex(tx, trunkTx.lastIndex());
-        System.arraycopy(trunkTx.trits(), TransactionViewModel.BUNDLE_TRINARY_OFFSET, tx.trits(),
+        byte[] txTrits = getRandomTransactionWithTrunkAndBranch(trunkTx.getHash(), branchHash);
+        setCurrentIndex(txTrits, trunkTx.getCurrentIndex() - 1);
+        setLastIndex(txTrits, trunkTx.lastIndex());
+        System.arraycopy(trunkTx.trits(), TransactionViewModel.BUNDLE_TRINARY_OFFSET, txTrits,
                 TransactionViewModel.BUNDLE_TRINARY_OFFSET, TransactionViewModel.BUNDLE_TRINARY_SIZE);
+        TransactionViewModel tx = new TransactionViewModel(
+                txTrits,
+                getRandomTransactionHash());
+
         return tx;
     }
 

@@ -503,6 +503,19 @@ public class TransactionViewModel {
         }
         return transaction.address;
     }
+    
+    /**
+     * 
+     * @return a copy of the underlying transaction opject
+     */
+    public Transaction getTransaction() {
+        Transaction t = new Transaction();
+        
+        // Read does a copy
+        t.read(getBytes());
+        t.readMetadata(transaction.metadata());
+        return t;
+    }
 
     /**
      * Gets the {@link ObsoleteTagHash} identifier of a {@link Transaction}.

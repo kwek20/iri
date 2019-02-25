@@ -2,12 +2,11 @@ package com.iota.iri.utils.dag;
 
 import static org.junit.Assert.*;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -22,10 +21,9 @@ import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.persistables.Approvee;
 import com.iota.iri.model.persistables.Transaction;
-import com.iota.iri.storage.Persistable;
 import com.iota.iri.storage.Tangle;
 
-public class DagHelperTest {
+public class DAGHelperTest {
     
     private static final Hash A = TransactionTestUtils.getRandomTransactionHash();
     private static final Hash B = TransactionTestUtils.getRandomTransactionHash();
@@ -49,7 +47,7 @@ public class DagHelperTest {
 
     @Before
     public void setUp() throws Exception {
-        helper = new DAGHelper(tangle);
+        helper = DAGHelper.get(tangle);
     }
 
     @Test
@@ -64,17 +62,21 @@ public class DagHelperTest {
         TangleMockUtils.mockTransaction(tangle, A, TX2);
         TangleMockUtils.mockTransaction(tangle, C, TX3);
         
+        Mockito.when(tangle.load(Approvee.class, Hash.NULL_HASH)).thenReturn(new Approvee(A));
+        Mockito.when(tangle.load(Approvee.class, A)).thenReturn(new Approvee(C));
+        
         List<TransactionViewModel> processed = new LinkedList<>();
+        Set<Hash> set = new HashSet<>();
         
         helper.traverseApprovers(Hash.NULL_HASH, transaction -> {
             return true;
         }, t -> {
             processed.add(t);
-        }, Collections.EMPTY_SET);
+        }, set);
         
-        assertTrue(processed.size() == 1);
+        assertTrue(processed.size() == 2);
         
-        TransactionViewModel tx = processed.get(0);
+        TransactionViewModel tx = processed.get(1);
         assertEquals(tx.getHash(), C);
         assertEquals(tx.getAddressHash(), TX3.address);
         assertEquals(tx.getAttachmentTimestamp(), TX3.attachmentTimestamp);
@@ -87,22 +89,19 @@ public class DagHelperTest {
         TangleMockUtils.mockTransaction(tangle, Hash.NULL_HASH, TX1);
         TangleMockUtils.mockTransaction(tangle, A, TX2);
         TangleMockUtils.mockTransaction(tangle, C, TX3);
-
-        Mockito.when(tangle.load(Approvee.class, Hash.NULL_HASH)).thenReturn(new Approvee(A));
-        Mockito.when(tangle.load(Approvee.class, A)).thenReturn(new Approvee(C));
         
         List<TransactionViewModel> processed = new LinkedList<>();
-        Set<Hash> n = Collections.EMPTY_SET;
+        Set<Hash> set = new HashSet<>();
         
         helper.traverseApprovees(C, transaction -> {
             return true;
         }, t -> {
             processed.add(t);
-        }, n);
+        }, set);
         
-        assertTrue(processed.size() == 1);
+        assertTrue(processed.size() == 2);
         
-        TransactionViewModel tx = processed.get(0);
+        TransactionViewModel tx = processed.get(1);
         assertEquals(tx.getHash(), Hash.NULL_HASH);
         assertEquals(tx.getAddressHash(), TX1.address);
         assertEquals(tx.getAttachmentTimestamp(), TX1.attachmentTimestamp);

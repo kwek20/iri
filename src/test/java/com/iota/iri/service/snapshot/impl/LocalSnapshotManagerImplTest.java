@@ -73,11 +73,10 @@ public class LocalSnapshotManagerImplTest {
 
     @After
     public void tearDown() throws Exception {
-        
+        lsManager.shutdown();
     }
     
     @Test
-    // We use an external variable, multi threading might break it
     public synchronized void takeLocalSnapshot() throws SnapshotException {
         // Always return true
         when(milestoneTracker.isInitialScanComplete()).thenReturn(true);
@@ -89,7 +88,7 @@ public class LocalSnapshotManagerImplTest {
         when(snapshotProvider.getLatestSnapshot().getIndex()).thenReturn(100);
         when(snapshotProvider.getInitialSnapshot().getIndex()).thenReturn(100 - SNAPSHOT_DEPTH - DELAY_SYNC - 1);
         
-        // Run in separate thread to allow is to time-out
+        // Run in separate thread to allow us to time-out
         Thread t = new Thread(new Runnable() {
             
             @Override

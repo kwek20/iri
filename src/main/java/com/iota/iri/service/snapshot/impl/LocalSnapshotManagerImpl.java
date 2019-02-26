@@ -31,7 +31,7 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
      * To prevent jumping back and forth in and out of sync, there is a buffer in between.
      * Only when the latest milestone and latest snapshot differ more than this number, we fall out of sync
      */
-    private static final int LOCAL_SNAPSHOT_SYNC_BUFFER = 5;
+    static final int LOCAL_SNAPSHOT_SYNC_BUFFER = 5;
 
     /**
      * Logger for this class allowing us to dump debug and status messages.
@@ -144,7 +144,6 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
                 }
             }
 
-            
             ThreadUtils.sleep(LOCAL_SNAPSHOT_RESCAN_INTERVAL);
         }
     }
@@ -187,7 +186,7 @@ public class LocalSnapshotManagerImpl implements LocalSnapshotManager {
         if (!isInSync && latestIndex == latestSnapshot) {
             isInSync = true;
 
-            // When we are in sync, only dropping below the buffer gets us out of sync
+        // When we are in sync, only dropping below the buffer gets us out of sync
         } else if (latestSnapshot < latestIndex - LOCAL_SNAPSHOT_SYNC_BUFFER) {
             isInSync = false;
         }

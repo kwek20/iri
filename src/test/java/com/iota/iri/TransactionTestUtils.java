@@ -15,7 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TransactionTestUtils {
 
-    private static Random seed = new Random();
+    private static Random seed = new Random(1);
     
     /**
      * Updates the transaction index in trits.
@@ -147,7 +147,7 @@ public class TransactionTestUtils {
     public static byte[] createTransactionWithTrunkAndBranchTrits(String trytes, Hash trunk, Hash branch) {
         String expandedTrytes = expandTrytes(trytes);
         byte[] trits =  Converter.allocatingTritsFromTrytes(expandedTrytes);
-        return getRandomTransactionTritsWithTrunkAndBranch(trits, trunk, branch);
+        return getTransactionWithTrunkAndBranchTrits(trits, trunk, branch);
     }
     
     /**
@@ -159,7 +159,7 @@ public class TransactionTestUtils {
      */
     public static byte[] getRandomTransactionWithTrunkAndBranch(Hash trunk, Hash branch) {
         byte[] trits = getRandomTransactionTrits();
-        return getRandomTransactionTritsWithTrunkAndBranch(trits, trunk, branch);
+        return getTransactionWithTrunkAndBranchTrits(trits, trunk, branch);
     }
     
     /**
@@ -169,7 +169,7 @@ public class TransactionTestUtils {
      * @param branch The branch transaction hash
      * @return trits The transaction trits
      */
-    public static byte[] getRandomTransactionTritsWithTrunkAndBranch(byte[] trits, Hash trunk, Hash branch) {
+    public static byte[] getTransactionWithTrunkAndBranchTrits(byte[] trits, Hash trunk, Hash branch) {
         System.arraycopy(trunk.trits(), 0, trits, TransactionViewModel.TRUNK_TRANSACTION_TRINARY_OFFSET,
                 TransactionViewModel.TRUNK_TRANSACTION_TRINARY_SIZE);
         System.arraycopy(branch.trits(), 0, trits, TransactionViewModel.BRANCH_TRANSACTION_TRINARY_OFFSET,

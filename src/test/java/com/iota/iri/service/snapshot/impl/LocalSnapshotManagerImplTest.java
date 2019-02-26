@@ -1,6 +1,9 @@
 package com.iota.iri.service.snapshot.impl;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,10 +16,8 @@ import org.junit.Test;
 import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.mockito.stubbing.Answer;
 
 import com.iota.iri.conf.SnapshotConfig;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
@@ -31,9 +32,6 @@ public class LocalSnapshotManagerImplTest {
     private static final int DELAY_SYNC = 5;
     private static final int DELAY_UNSYNC = 1;
     private static final int SNAPSHOT_DEPTH = 5;
-    
-    // Used in threaded void method stubbing
-    private static volatile AtomicBoolean reachedMethod = new AtomicBoolean(false);
 
     @Rule 
     public MockitoRule mockitoRule = MockitoJUnit.rule();
@@ -81,14 +79,6 @@ public class LocalSnapshotManagerImplTest {
     @Test
     // We use an external variable, multi threading might break it
     public synchronized void takeLocalSnapshot() throws SnapshotException {
-        // If we get to the snapshot, were good!
-        Mockito.doAnswer(new Answer<Void>() {
-            public Void answer(InvocationOnMock invocation) {
-              reachedMethod.set(true);
-              return null;
-            }
-        }).when(snapshotService).takeLocalSnapshot(Mockito.any(), Mockito.any());
-        
         // Always return true
         when(milestoneTracker.isInitialScanComplete()).thenReturn(true);
         
@@ -113,13 +103,11 @@ public class LocalSnapshotManagerImplTest {
         // We should finish directly, margin for slower computers
         ThreadUtils.sleep(100);
         
-        assertTrue(reachedMethod.get());
-        
         // Cancel the thread
         t.interrupt();
         
-        // Reset variable
-        reachedMethod.set(false);
+        // Verify we took a snapshot
+        verify(snapshotService, times(1)).takeLocalSnapshot(Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -132,7 +120,7 @@ public class LocalSnapshotManagerImplTest {
     public void isInSyncTestScanComplete() {
         // Always return true
         when(milestoneTracker.isInitialScanComplete()).thenReturn(true);
-        when(milestoneTracker.getLatestMilestoneIndex()).thenReturn(-1, 5, 10, 999, 2000);
+        when(milestoneTracker.getLatestMilestoneIndex()).thenReturn(-1, 5, 10, 998 + DELAY_SYNC - 1, 2000);
         
         // snapshotProvider & milestoneTracker
         // -5 & -1 -> not in sync
@@ -144,7 +132,7 @@ public class LocalSnapshotManagerImplTest {
         // 10 and 10 -> in sync
         assertTrue(lsManager.isInSync(milestoneTracker));
         
-        // 998 and 999 -> in sync since sync gap = 5
+        // 998 and 1002 -> in sync since sync gap = 5
         assertTrue(lsManager.isInSync(milestoneTracker));
         
         // 999 and 2000 -> out of sync again, bigger gap than 5

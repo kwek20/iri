@@ -3,9 +3,11 @@ package com.iota.iri.service.milestone.impl;
 import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.AddressViewModel;
 import com.iota.iri.controllers.MilestoneViewModel;
+import com.iota.iri.controllers.TagViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
+import com.iota.iri.model.ObsoleteTagHash;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
 import com.iota.iri.service.milestone.MilestoneException;
 import com.iota.iri.service.milestone.MilestoneService;
@@ -13,6 +15,7 @@ import com.iota.iri.service.milestone.MilestoneSolidifier;
 import com.iota.iri.service.snapshot.Snapshot;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.storage.Tangle;
+import com.iota.iri.utils.Converter;
 import com.iota.iri.utils.log.interval.IntervalLogger;
 import com.iota.iri.utils.thread.DedicatedScheduledExecutorService;
 import com.iota.iri.utils.thread.SilentScheduledExecutorService;
@@ -20,6 +23,7 @@ import com.iota.iri.utils.thread.SilentScheduledExecutorService;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +45,12 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
      * Holds the time (in milliseconds) between iterations of the background worker.<br />
      */
     private static final int RESCAN_INTERVAL = 1000;
+    
+    /**
+     * Maximum future milestone we look for.
+     * Advised value is at least as much as the milestone solidification queue size
+     */
+    private static final int MAX_LOOK_AHEAD = 10;
 
     /**
      * Holds the logger of this class (a rate limited logger than doesn't spam the CLI output).<br />
@@ -175,6 +185,7 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
     @Override
     public boolean processMilestoneCandidate(Hash transactionHash) throws MilestoneException {
         try {
+            System.out.println("Attempting to find " + transactionHash);
             return processMilestoneCandidate(TransactionViewModel.fromHash(tangle, transactionHash));
         } catch (Exception e) {
             throw new MilestoneException("unexpected error while analyzing the transaction " + transactionHash, e);
@@ -199,6 +210,7 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
                 if (milestoneIndex <= snapshotProvider.getInitialSnapshot().getIndex()) {
                     return true;
                 }
+                System.out.println("Found a milestone we want!");
 
                 switch (milestoneService.validateMilestone(transaction, milestoneIndex)) {
                     case VALID:
@@ -267,7 +279,7 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
         try {
             logProgress();
             collectNewMilestoneCandidates();
-
+            
             // additional log message on the first run to indicate how many milestone candidates we have in total
             if (firstRun) {
                 firstRun = false;
@@ -300,20 +312,25 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
      * This method collects the new milestones that have not been "seen" before, by collecting them in the {@link
      * #milestoneCandidatesToAnalyze} queue.<br />
      * <br />
-     * We simply request all transaction that are originating from the coordinator address and treat them as potential
-     * milestone candidates.<br />
+     * We check {@value MAX_LOOK_AHEAD} indexes above our current latest milestone index.<br />
      *
      * @throws MilestoneException if anything unexpected happens while collecting the new milestone candidates
      */
     private void collectNewMilestoneCandidates() throws MilestoneException {
         try {
-            for (Hash hash : AddressViewModel.load(tangle, coordinatorAddress).getHashes()) {
-                if (Thread.currentThread().isInterrupted()) {
-                    return;
-                }
+            for (int i=0; i<MAX_LOOK_AHEAD; i++) {
+                byte[] trits = Converter.pad(Converter.fromValue(latestMilestoneIndex + i + 1), 27*3);
+                Hash hash = HashFactory.OBSOLETETAG.create(trits);
+                Set<Hash> tagHashes = TagViewModel.loadObsolete(tangle, hash).getHashes();
 
-                if (seenMilestoneCandidates.add(hash)) {
-                    milestoneCandidatesToAnalyze.addFirst(hash);
+                for (Hash h : tagHashes) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                    
+                    if (!milestoneCandidatesToAnalyze.contains(h)) {
+                        milestoneCandidatesToAnalyze.addFirst(h);
+                    }
                 }
             }
         } catch (Exception e) {

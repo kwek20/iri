@@ -133,6 +133,10 @@ public class TangleMockUtils {
      */
     public static Transaction mockTransaction(Tangle tangle, Hash hash, Transaction transaction) {
         try {
+            if (transaction.bytes == null) {
+                // TVM will return an empty transaction object when we dont have bytes in here
+                transaction.bytes = new byte[0];
+            }
             Mockito.when(tangle.load(Transaction.class, hash)).thenReturn(transaction);
             Mockito.when(tangle.getLatest(Transaction.class, Hash.class)).thenReturn(new Pair<>(hash, transaction));
         } catch (Exception e) {

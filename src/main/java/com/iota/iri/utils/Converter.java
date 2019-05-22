@@ -187,6 +187,21 @@ public class Converter {
         }
         return trytes.toString();
     }
+    
+    /**
+     * Append zeroes to the array until size is reached.
+     * 
+     * @param trits The trits we append to
+     * @param padSize The size we want to udpate the array to.
+     * @return The new array with the specified size and trits
+     */
+    public static byte[] pad(byte[] trits, int padSize) {
+        byte[] newArray = new byte[padSize];
+        for (int j=0; j<trits.length; j++) {
+            newArray[j] = (byte) trits[j];
+        }
+        return newArray;
+    }
 
     /**
      * Converts trits (bytes array)to a tryte string.<br>
@@ -231,6 +246,45 @@ public class Converter {
             value = value * RADIX + trits[srcPos + i];
         }
         return value;
+    }
+    
+    /**
+     * Converts the specified integer to its corresponding trits value.
+     * 
+     * @param value the integer we want to convert
+     * @return The array of trits 
+     */
+    public static byte[] fromValue(int value) {
+        if (0 == value) {
+            return new byte[] {0};
+        }
+        
+        byte[] destination = new byte[
+           (int) (1 + Math.floor(Math.log(2 * Math.max(1, Math.abs(value))) / Math.log(3)))
+        ];
+        
+        int i = 0;
+        int absoluteValue = value < 0 ? -value : value;
+        while (absoluteValue > 0) {
+            byte remainder = (byte) (absoluteValue % RADIX);
+            absoluteValue = (int) Math.floor(absoluteValue / RADIX);
+
+            if (remainder > MAX_TRIT_VALUE) {
+                remainder = MIN_TRIT_VALUE;
+                absoluteValue++;
+            }
+
+            destination[i] = remainder;
+            i++;
+        }
+
+        if (value < 0) {
+            for (int j = 0; j < destination.length; j++) {
+                destination[j] = (byte) -destination[j];
+            }
+        }
+
+        return destination;
     }
 
     /**

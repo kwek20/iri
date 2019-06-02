@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.google.common.base.Strings;
 import com.iota.iri.TangleMockUtils;
 import com.iota.iri.TransactionTestUtils;
 import com.iota.iri.conf.IotaConfig;
@@ -58,7 +59,9 @@ public class LatestMilestoneTrackerImplTest {
     
     @Test
     public void test() throws Exception {
-        byte[] trits = Converter.pad(Converter.fromValue(1), 27*3);
+        int milestone = 1; 
+        String tag = Strings.padEnd(Converter.getTrytesForIndex(milestone), 81, '9');
+        byte[] trits = Converter.allocatingTritsFromTrytes(tag);
         
         Transaction t = new Transaction();
         t.obsoleteTag = HashFactory.OBSOLETETAG.create(trits);
@@ -74,7 +77,7 @@ public class LatestMilestoneTrackerImplTest {
         tracker.start();
 
         // Wait until different thread did its job
-        Thread.currentThread().sleep(10);
-        assertEquals("Latest milestone should be one", 1, tracker.getLatestMilestoneIndex());
+        Thread.currentThread().sleep(100);
+        assertEquals("Latest milestone should be " + milestone, milestone, tracker.getLatestMilestoneIndex());
     }
 }

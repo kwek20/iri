@@ -2,6 +2,8 @@ package com.iota.iri.utils;
 
 import java.util.Arrays;
 
+import com.google.common.base.Strings;
+
 /**
  * Converts between different representations of trytes, bytes, trits and numbers.
  *
@@ -52,7 +54,7 @@ public class Converter {
         }
 
     }
-    private static void increment(final byte[] trits, final int size) {
+    public static void increment(final byte[] trits, final int size) {
         for (int i = 0; i < size; i++) {
             if (++trits[i] > Converter.MAX_TRIT_VALUE) {
                 trits[i] = Converter.MIN_TRIT_VALUE;
@@ -249,43 +251,19 @@ public class Converter {
     }
     
     /**
-     * Converts the specified integer to its corresponding trits value.
+     * Converts the specified integer to its corresponding tryte value.
+     * Used in milestone tag creation.
      * 
      * @param value the integer we want to convert
-     * @return The array of trits 
+     * @return The trytes it converts into
      */
-    public static byte[] fromValue(int value) {
-        if (0 == value) {
-            return new byte[] {0};
+    public static String getTrytesForIndex(int index) {
+        byte[] trits = new byte[15];
+        for (int i = 0; i < index; i++) {
+          Converter.increment(trits, trits.length);
         }
-        
-        byte[] destination = new byte[
-           (int) (1 + Math.floor(Math.log(2 * Math.max(1, Math.abs(value))) / Math.log(3)))
-        ];
-        
-        int i = 0;
-        int absoluteValue = value < 0 ? -value : value;
-        while (absoluteValue > 0) {
-            byte remainder = (byte) (absoluteValue % RADIX);
-            absoluteValue = (int) Math.floor(absoluteValue / RADIX);
-
-            if (remainder > MAX_TRIT_VALUE) {
-                remainder = MIN_TRIT_VALUE;
-                absoluteValue++;
-            }
-
-            destination[i] = remainder;
-            i++;
-        }
-
-        if (value < 0) {
-            for (int j = 0; j < destination.length; j++) {
-                destination[j] = (byte) -destination[j];
-            }
-        }
-
-        return destination;
-    }
+        return Converter.trytes(trits);
+      }
 
     /**
      * fills a trit array with a representation of the {@code value} argument in <i>Balanced ternary</i> arithmetic

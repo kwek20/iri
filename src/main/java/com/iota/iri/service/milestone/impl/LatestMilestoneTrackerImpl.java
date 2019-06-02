@@ -1,5 +1,6 @@
 package com.iota.iri.service.milestone.impl;
 
+import com.google.common.base.Strings;
 import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.AddressViewModel;
 import com.iota.iri.controllers.MilestoneViewModel;
@@ -319,7 +320,9 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
     private void collectNewMilestoneCandidates() throws MilestoneException {
         try {
             for (int i=0; i<MAX_LOOK_AHEAD; i++) {
-                byte[] trits = Converter.pad(Converter.fromValue(latestMilestoneIndex + i + 1), 27*3);
+                String tag = Strings.padEnd(Converter.getTrytesForIndex(latestMilestoneIndex + i + 1), 81, '9');
+                byte[] trits = Converter.allocatingTritsFromTrytes(tag);
+                
                 Hash hash = HashFactory.OBSOLETETAG.create(trits);
                 Set<Hash> tagHashes = TagViewModel.loadObsolete(tangle, hash).getHashes();
 

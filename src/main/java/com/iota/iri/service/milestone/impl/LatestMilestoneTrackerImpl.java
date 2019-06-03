@@ -8,7 +8,6 @@ import com.iota.iri.controllers.TagViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
-import com.iota.iri.model.ObsoleteTagHash;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
 import com.iota.iri.service.milestone.MilestoneException;
 import com.iota.iri.service.milestone.MilestoneService;
@@ -24,7 +23,6 @@ import com.iota.iri.utils.thread.SilentScheduledExecutorService;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -40,10 +38,6 @@ import java.util.concurrent.TimeUnit;
  * </p>
  */
 public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
-    /**
-     * Holds the amount of milestone candidates that will be analyzed per iteration of the background worker.
-     */
-    private static final int MAX_CANDIDATES_TO_ANALYZE = 5000;
 
     /**
      * Holds the time (in milliseconds) between iterations of the background worker.
@@ -194,7 +188,6 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
     @Override
     public boolean processMilestoneCandidate(Hash transactionHash) throws MilestoneException {
         try {
-            System.out.println("Attempting to find " + transactionHash);
             return processMilestoneCandidate(TransactionViewModel.fromHash(tangle, transactionHash));
         } catch (Exception e) {
             throw new MilestoneException("unexpected error while analyzing the transaction " + transactionHash, e);
@@ -221,7 +214,6 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
                 if (milestoneIndex <= snapshotProvider.getInitialSnapshot().getIndex()) {
                     return true;
                 }
-                System.out.println("Found a milestone we want!");
 
                 switch (milestoneService.validateMilestone(transaction, milestoneIndex)) {
                     case VALID:
@@ -293,13 +285,15 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
     private void latestMilestoneTrackerThread() {
         try {
             logProgress();
-            collectNewMilestoneCandidates();
             
             // additional log message on the first run to indicate how many milestone candidates we have in total
             if (firstRun) {
+                collectInitialNewMilestoneCandidates();
                 firstRun = false;
 
                 logProgress();
+            } else {
+                collectNewMilestoneCandidates();
             }
 
             analyzeMilestoneCandidates();
@@ -361,21 +355,38 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
     }
 
     /**
+     * This method collects the new milestones that have not been "seen" before, by collecting them in the {@link
+     * #milestoneCandidatesToAnalyze} queue.<br />
+     * <br />
+     * We simply request all transaction that are originating from the coordinator address and treat them as potential
+     * milestone candidates.<br />
+     *
+     * @throws MilestoneException if anything unexpected happens while collecting the new milestone candidates
+     */
+    private void collectInitialNewMilestoneCandidates() throws MilestoneException {
+        try {
+            for (Hash hash : AddressViewModel.load(tangle, coordinatorAddress).getHashes()) {
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
+                }
+
+                milestoneCandidatesToAnalyze.addFirst(hash);
+            }
+        } catch (Exception e) {
+            throw new MilestoneException("failed to collect the new milestone candidates", e);
+        }
+    }
+    
+    /**
      * <p>
      * This method analyzes the milestone candidates by working through the {@link #milestoneCandidatesToAnalyze}
      * queue.
-     * </p>
-     * <p>
-     * We only process {@link #MAX_CANDIDATES_TO_ANALYZE} at a time, to give the caller the option to terminate early
-     * and pick up new milestones as fast as possible without being stuck with analyzing the old ones for too
-     * long.
      * </p>
      *
      * @throws MilestoneException if anything unexpected happens while analyzing the milestone candidates
      */
     private void analyzeMilestoneCandidates() throws MilestoneException {
-        int candidatesToAnalyze = Math.min(milestoneCandidatesToAnalyze.size(), MAX_CANDIDATES_TO_ANALYZE);
-        for (int i = 0; i < candidatesToAnalyze; i++) {
+        for (int i = 0; i < milestoneCandidatesToAnalyze.size(); i++) {
             if (Thread.currentThread().isInterrupted()) {
                 return;
             }

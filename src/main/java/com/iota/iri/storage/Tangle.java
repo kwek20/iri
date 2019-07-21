@@ -3,8 +3,9 @@ package com.iota.iri.storage;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.iota.iri.model.Hash;
+import com.iota.iri.model.HashFactory;
 import com.iota.iri.model.StateDiff;
 import com.iota.iri.model.persistables.Address;
 import com.iota.iri.model.persistables.Approvee;
@@ -48,10 +50,14 @@ public class Tangle {
     public static final Map.Entry<String, Class<? extends Persistable>> METADATA_COLUMN_FAMILY = new AbstractMap.SimpleImmutableEntry<>(
             "transaction-metadata", Transaction.class);
 
-    private final Map<Class<?>, DataCache<Indexable, ? extends Persistable>> caches = new HashMap<>();
-
     private final List<PersistenceProvider> persistenceProviders = new ArrayList<>();
     private final List<MessageQueueProvider> messageQueueProviders = new ArrayList<>();
+
+    private PersistenceCache cache;
+
+    public void setCache(PersistenceCache cache) {
+        this.cache = cache;
+    }
 
     public void addPersistenceProvider(PersistenceProvider provider) {
         this.persistenceProviders.add(provider);
@@ -68,15 +74,20 @@ public class Tangle {
     }
 
     public void init() throws Exception {
+        if (null != cache) {
+            cache.init();
+        }
+
         for (PersistenceProvider provider : this.persistenceProviders) {
             provider.init();
         }
     }
 
     public void shutdown() throws Exception {
-        log.info("Shutting down Tangle data caching... ");
-        this.caches.values().forEach(DataCache::shutdown);
-        this.caches.clear();
+        if (null != cache) {
+            log.info("Shutting down Tangle data caching... ");
+            this.cache.shutdown();
+        }
 
         log.info("Shutting down Tangle Persistence Providers... ");
         this.persistenceProviders.forEach(PersistenceProvider::shutdown);
@@ -86,32 +97,29 @@ public class Tangle {
         this.messageQueueProviders.clear();
     }
 
-    public void addCache(Class<?> model, DataCache<Indexable, ? extends Persistable> cache) {
-        DataCache<Indexable, ? extends Persistable> old = caches.put(model, cache);
-        if (null != old) {
-            try {
-                old.writeAll();
-            } catch (CacheException e) {
-                log.warn(e.getMessage());
-            }
-        }
-    }
-
-    public <T extends Persistable> DataCache<Indexable, T> getCache(Class<T> model) {
-        return (DataCache<Indexable, T>) caches.get(model);
-    }
-
     public Persistable load(Class<?> model, Indexable index) throws Exception {
         Persistable out = null;
+        if (null != cache && null != (out = cache.get(model, index))) {
+            return out;
+        }
+
         for (PersistenceProvider provider : this.persistenceProviders) {
             if ((out = provider.get(model, index)) != null) {
                 break;
             }
         }
+
+        if (null != cache && null != out) {
+            cache.add(index, out);
+        }
         return out;
     }
 
     public Boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception {
+        if (null != cache) {
+            return cache.saveBatch(models);
+        }
+
         boolean exists = false;
         for (PersistenceProvider provider : persistenceProviders) {
             if (exists) {
@@ -124,6 +132,10 @@ public class Tangle {
     }
 
     public Boolean save(Persistable model, Indexable index) throws Exception {
+        if (null != cache) {
+            return cache.save(model, index);
+        }
+
         boolean exists = false;
         for (PersistenceProvider provider : persistenceProviders) {
             if (exists) {
@@ -133,16 +145,25 @@ public class Tangle {
             }
         }
         return exists;
+
     }
 
     public void deleteBatch(Collection<Pair<Indexable, ? extends Class<? extends Persistable>>> models)
             throws Exception {
+        if (null != cache) {
+            cache.deleteBatch(models);
+        }
+
         for (PersistenceProvider provider : persistenceProviders) {
             provider.deleteBatch(models);
         }
     }
 
     public void delete(Class<?> model, Indexable index) throws Exception {
+        if (null != cache) {
+            cache.delete(model, index);
+        }
+
         for (PersistenceProvider provider : persistenceProviders) {
             provider.delete(model, index);
         }
@@ -150,10 +171,18 @@ public class Tangle {
 
     public Pair<Indexable, Persistable> getLatest(Class<?> model, Class<?> index) throws Exception {
         Pair<Indexable, Persistable> latest = null;
+        if (null != cache && null != (latest = cache.latest(model, index))) {
+            return latest;
+        }
+
         for (PersistenceProvider provider : persistenceProviders) {
             if (latest == null) {
                 latest = provider.latest(model, index);
             }
+        }
+
+        if (null != cache && null != latest) {
+            cache.add(latest.low, latest.hi);
         }
         return latest;
     }
@@ -168,6 +197,10 @@ public class Tangle {
      * @throws Exception when updating the {@link PersistenceProvider} fails
      */
     public void update(Persistable model, Indexable index, String item) throws Exception {
+        if (null != cache) {
+            cache.update(model, index, item);
+        }
+
         updatePersistenceProvider(model, index, item);
         updateMessageQueueProvider(model, index, item);
     }
@@ -201,6 +234,8 @@ public class Tangle {
     }
 
     public Set<Indexable> keysWithMissingReferences(Class<?> modelClass, Class<?> referencedClass) throws Exception {
+        // We dont store missing references in the cache
+
         Set<Indexable> output = null;
         for (PersistenceProvider provider : this.persistenceProviders) {
             output = provider.keysWithMissingReferences(modelClass, referencedClass);
@@ -212,32 +247,37 @@ public class Tangle {
     }
 
     public Set<Indexable> keysStartingWith(Class<?> modelClass, byte[] value) {
-        Set<Indexable> output = null;
-        for (PersistenceProvider provider : this.persistenceProviders) {
-            output = provider.keysStartingWith(modelClass, value);
-            if (output.size() != 0) {
-                break;
-            }
+        Set<Indexable> output = new HashSet<Indexable>();
+        if (null != cache) {
+            output.addAll(cache.keysStartingWith(modelClass, value));
         }
-        return output;
+
+        for (PersistenceProvider provider : this.persistenceProviders) {
+            output.addAll(provider.keysStartingWith(modelClass, value));
+        }
+
+        return output.size() > 0 ? output : null;
     }
 
     public <T extends Indexable> List<T> loadAllKeysFromTable(Class<? extends Persistable> modelClass,
             Function<byte[], T> transformer) {
-        List<byte[]> keys = null;
-        for (PersistenceProvider provider : this.persistenceProviders) {
-            if ((keys = provider.loadAllKeysFromTable(modelClass)) != null) {
-                break;
-            }
+        List<byte[]> keys = new LinkedList<byte[]>();
+        if (null != cache) {
+            keys.addAll(cache.loadAllKeysFromTable(modelClass));
         }
 
-        if (keys != null) {
-            return keys.stream().map(transformer).collect(Collectors.toList());
+        for (PersistenceProvider provider : this.persistenceProviders) {
+            keys.addAll(provider.loadAllKeysFromTable(modelClass));
         }
-        return null;
+
+        return keys.size() > 0 ? keys.stream().map(transformer).collect(Collectors.toList()) : null;
     }
 
     public Boolean exists(Class<?> modelClass, Indexable hash) throws Exception {
+        if (null != cache && cache.exists(modelClass, hash)) {
+            return true;
+        }
+
         for (PersistenceProvider provider : this.persistenceProviders) {
             if (provider.exists(modelClass, hash)) {
                 return true;
@@ -247,6 +287,10 @@ public class Tangle {
     }
 
     public Boolean maybeHas(Class<?> model, Indexable index) throws Exception {
+        if (null != cache && cache.mayExist(model, index)) {
+            return true;
+        }
+
         for (PersistenceProvider provider : this.persistenceProviders) {
             if (provider.mayExist(model, index)) {
                 return true;
@@ -256,51 +300,83 @@ public class Tangle {
     }
 
     public Long getCount(Class<?> modelClass) throws Exception {
-        long value = 0;
+        long value = null != cache ? cache.count(modelClass) : 0;
+
         for (PersistenceProvider provider : this.persistenceProviders) {
-            if ((value = provider.count(modelClass)) != 0) {
-                break;
-            }
+            value += provider.count(modelClass);
         }
         return value;
     }
 
     public Persistable find(Class<?> model, byte[] key) throws Exception {
         Persistable out = null;
+        if (null != cache && null != (out = cache.seek(model, key))) {
+            return out;
+        }
+
         for (PersistenceProvider provider : this.persistenceProviders) {
             if ((out = provider.seek(model, key)) != null) {
                 break;
             }
+        }
+
+        if (null != cache && null != out) {
+            cache.add(HashFactory.GENERIC.create(model, key), out);
         }
         return out;
     }
 
     public Pair<Indexable, Persistable> next(Class<?> model, Indexable index) throws Exception {
         Pair<Indexable, Persistable> latest = null;
+        if (null != cache && null != (latest = cache.next(model, index))) {
+            return latest;
+        }
+
         for (PersistenceProvider provider : persistenceProviders) {
             if (latest == null) {
                 latest = provider.next(model, index);
             }
+        }
+
+        if (null != cache && null != latest) {
+            cache.add(latest.low, latest.hi);
         }
         return latest;
     }
 
     public Pair<Indexable, Persistable> previous(Class<?> model, Indexable index) throws Exception {
         Pair<Indexable, Persistable> latest = null;
+        if (null != cache && null != (latest = cache.previous(model, index))) {
+            return latest;
+        }
+
         for (PersistenceProvider provider : persistenceProviders) {
             if (latest == null) {
                 latest = provider.previous(model, index);
             }
         }
+
+        if (null != cache && null != latest) {
+            cache.add(latest.low, latest.hi);
+        }
         return latest;
     }
 
-    public Pair<Indexable, Persistable> getFirst(Class<?> model, Class<?> index) throws Exception {
+    public Pair<Indexable, Persistable> getFirst(Class<?> model, Class<?> indexModel) throws Exception {
         Pair<Indexable, Persistable> latest = null;
+        if (null != cache && null != (latest = cache.first(model, indexModel))) {
+            return latest;
+        }
+
+
         for (PersistenceProvider provider : persistenceProviders) {
             if (latest == null) {
-                latest = provider.first(model, index);
+                latest = provider.first(model, indexModel);
             }
+        }
+        
+        if (null != cache && null != latest) {
+            cache.add(latest.low, latest.hi);
         }
         return latest;
     }

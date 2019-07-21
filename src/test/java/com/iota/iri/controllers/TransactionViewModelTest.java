@@ -1,33 +1,35 @@
 package com.iota.iri.controllers;
 
-import com.iota.iri.conf.MainnetConfig;
-import com.iota.iri.crypto.SpongeFactory;
-import com.iota.iri.model.Hash;
-import com.iota.iri.model.TransactionHash;
-import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
-import com.iota.iri.storage.Tangle;
-import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
-import com.iota.iri.utils.Converter;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.iota.iri.TransactionTestUtils.getTransactionHash;
+import static com.iota.iri.TransactionTestUtils.getTransactionTrits;
+import static com.iota.iri.TransactionTestUtils.getTransactionTritsWithTrunkAndBranch;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Set;
 
-import static com.iota.iri.TransactionTestUtils.getTransactionTrits;
-import static com.iota.iri.TransactionTestUtils.getTransactionHash;
-import static com.iota.iri.TransactionTestUtils.getTransactionTritsWithTrunkAndBranch;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.*;
+import com.iota.iri.conf.MainnetConfig;
+import com.iota.iri.crypto.SpongeFactory;
+import com.iota.iri.model.Hash;
+import com.iota.iri.model.TransactionHash;
+import com.iota.iri.service.snapshot.SnapshotProvider;
+import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
+import com.iota.iri.storage.PersistenceCache;
+import com.iota.iri.storage.Tangle;
+import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
+import com.iota.iri.utils.Converter;
 
 public class TransactionViewModelTest {
 
@@ -48,6 +50,8 @@ public class TransactionViewModelTest {
                 dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000,
                 Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
         tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+
+        tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
         tangle.init();
         snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
     }

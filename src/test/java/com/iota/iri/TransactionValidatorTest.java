@@ -1,5 +1,16 @@
 package com.iota.iri;
 
+import static com.iota.iri.TransactionTestUtils.getTransactionHash;
+import static com.iota.iri.TransactionTestUtils.getTransactionTrits;
+import static com.iota.iri.TransactionTestUtils.getTransactionTritsWithTrunkAndBranch;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import com.iota.iri.conf.MainnetConfig;
 import com.iota.iri.controllers.TipsViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
@@ -8,17 +19,10 @@ import com.iota.iri.model.TransactionHash;
 import com.iota.iri.network.TransactionRequester;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
+import com.iota.iri.storage.PersistenceCache;
 import com.iota.iri.storage.Tangle;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
 import com.iota.iri.utils.Converter;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
-import static com.iota.iri.TransactionTestUtils.*;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 public class TransactionValidatorTest {
 
@@ -35,9 +39,11 @@ public class TransactionValidatorTest {
     logFolder.create();
     tangle = new Tangle();
     snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
-    tangle.addPersistenceProvider(
-        new RocksDBPersistenceProvider(
-            dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000, Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY));
+    RocksDBPersistenceProvider rocksDBPersistenceProvider = new RocksDBPersistenceProvider(
+                dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(), 1000,
+                Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
+    tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+    tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
     tangle.init();
     TipsViewModel tipsViewModel = new TipsViewModel();
     TransactionRequester txRequester = new TransactionRequester(tangle, snapshotProvider);

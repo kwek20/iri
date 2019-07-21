@@ -1,12 +1,5 @@
 package com.iota.iri.storage.rocksDB;
 
-import com.iota.iri.model.HashFactory;
-import com.iota.iri.storage.Indexable;
-import com.iota.iri.storage.Persistable;
-import com.iota.iri.storage.PersistenceProvider;
-import com.iota.iri.utils.IotaIOUtils;
-import com.iota.iri.utils.Pair;
-
 import java.io.File;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -45,6 +38,13 @@ import org.rocksdb.WriteOptions;
 import org.rocksdb.util.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.iota.iri.model.HashFactory;
+import com.iota.iri.storage.Indexable;
+import com.iota.iri.storage.Persistable;
+import com.iota.iri.storage.PersistenceProvider;
+import com.iota.iri.utils.IotaIOUtils;
+import com.iota.iri.utils.Pair;
 
 public class RocksDBPersistenceProvider implements PersistenceProvider {
 
@@ -304,7 +304,12 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
                 if (value.merge()) {
                     writeBatch.merge(handle, key.bytes(), value.bytes());
                 } else {
-                    writeBatch.put(handle, key.bytes(), value.bytes());
+                    try {
+                        writeBatch.put(handle, key.bytes(), value.bytes());
+                    } catch (Exception e) {
+                        System.out.println(e);
+                        throw e;
+                    }
                 }
                 if (referenceHandle != null) {
                     writeBatch.put(referenceHandle, key.bytes(), value.metadata());

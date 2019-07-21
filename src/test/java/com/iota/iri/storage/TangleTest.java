@@ -1,5 +1,15 @@
 package com.iota.iri.storage;
 
+import java.util.Arrays;
+import java.util.Random;
+import java.util.Set;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import com.iota.iri.conf.MainnetConfig;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.crypto.SpongeFactory;
@@ -8,15 +18,6 @@ import com.iota.iri.model.persistables.Tag;
 import com.iota.iri.service.snapshot.SnapshotProvider;
 import com.iota.iri.service .snapshot.impl.SnapshotProviderImpl;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
-import java.util.Arrays;
-import java.util.Random;
-import java.util.Set;
 
 public class TangleTest {
     private final TemporaryFolder dbFolder = new TemporaryFolder();
@@ -35,6 +36,8 @@ public class TangleTest {
                 dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000,
                 Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
         tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+
+        tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
         tangle.init();
         snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
     }

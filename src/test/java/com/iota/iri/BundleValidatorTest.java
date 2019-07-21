@@ -1,22 +1,24 @@
 package com.iota.iri;
 
-import com.iota.iri.conf.MainnetConfig;
-import com.iota.iri.crypto.SpongeFactory;
-import com.iota.iri.model.TransactionHash;
-import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
-import com.iota.iri.storage.Tangle;
-import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
-import com.iota.iri.utils.Converter;
-import com.iota.iri.controllers.TransactionViewModel;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.iota.iri.conf.MainnetConfig;
+import com.iota.iri.controllers.TransactionViewModel;
+import com.iota.iri.crypto.SpongeFactory;
+import com.iota.iri.model.TransactionHash;
+import com.iota.iri.service.snapshot.SnapshotProvider;
+import com.iota.iri.service.snapshot.impl.SnapshotProviderImpl;
+import com.iota.iri.storage.PersistenceCache;
+import com.iota.iri.storage.Tangle;
+import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
+import com.iota.iri.utils.Converter;
 
 public class BundleValidatorTest {
     private static Tangle tangle = new Tangle();
@@ -28,10 +30,11 @@ public class BundleValidatorTest {
         TemporaryFolder logFolder = new TemporaryFolder();
         dbFolder.create();
         logFolder.create();
-        tangle.addPersistenceProvider(
-                new RocksDBPersistenceProvider(dbFolder.getRoot().getAbsolutePath(),
-                        logFolder.getRoot().getAbsolutePath(), 1000, Tangle.COLUMN_FAMILIES,
-                        Tangle.METADATA_COLUMN_FAMILY));
+        RocksDBPersistenceProvider rocksDBPersistenceProvider = new RocksDBPersistenceProvider(
+                dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(), 1000,
+                Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
+        tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+        tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
         tangle.init();
         snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
     }

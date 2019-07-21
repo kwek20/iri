@@ -30,7 +30,7 @@ public interface DataCache<K, V> {
      * @return The value we cached
      * @throws CacheException If we couldn't find the value related to the key
      */
-    V get(K key) throws CacheException;
+    // V get(K key) throws CacheException;
 
     /**
      * Checks if the cache contains this key. Does not check in the underlying
@@ -39,7 +39,7 @@ public interface DataCache<K, V> {
      * @param key The key to check for
      * @return <code>true</code> if it is cached, otherwise <code>false</code>
      */
-    boolean contains(K key);
+    // boolean contains(K key);
 
     /**
      * Add the key/value pair to the cache. If the cache is full after this add, the

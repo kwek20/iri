@@ -1,14 +1,19 @@
 package com.iota.iri.controllers;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import com.iota.iri.conf.MainnetConfig;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
+import com.iota.iri.storage.PersistenceCache;
 import com.iota.iri.storage.Tangle;
 import com.iota.iri.storage.rocksDB.RocksDBPersistenceProvider;
-import org.junit.*;
-import org.junit.rules.TemporaryFolder;
-
-import static org.junit.Assert.*;
 
 public class MilestoneViewModelTest {
     final TemporaryFolder dbFolder = new TemporaryFolder();
@@ -25,6 +30,7 @@ public class MilestoneViewModelTest {
                 dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000,
                 Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
         tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+        tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
         tangle.init();
     }
 

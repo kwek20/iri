@@ -342,7 +342,11 @@ public class TransactionViewModelTest {
         Hash hash = transactionViewModel.getHash();
         System.out.println(hash.bytes().length);
         Assert.assertArrayEquals(TransactionViewModel.find(tangle,
+<<<<<<< HEAD
                 Arrays.copyOf(hash.bytes(), 49)).getBytes(),
+=======
+                Arrays.copyOf(hash.bytes(), MainnetConfig.Defaults.REQUEST_HASH_SIZE)).getBytes(),
+>>>>>>> dev
                 transactionViewModel.getBytes());
     }
 

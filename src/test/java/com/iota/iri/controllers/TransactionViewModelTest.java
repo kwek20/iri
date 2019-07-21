@@ -340,8 +340,9 @@ public class TransactionViewModelTest {
         TransactionViewModel transactionViewModel = new TransactionViewModel(trits, TransactionHash.calculate(SpongeFactory.Mode.CURLP81, trits));
         transactionViewModel.store(tangle, snapshotProvider.getInitialSnapshot());
         Hash hash = transactionViewModel.getHash();
+        System.out.println(hash.bytes().length);
         Assert.assertArrayEquals(TransactionViewModel.find(tangle,
-                Arrays.copyOf(hash.bytes(), MainnetConfig.Defaults.REQ_HASH_SIZE)).getBytes(),
+                Arrays.copyOf(hash.bytes(), 49)).getBytes(),
                 transactionViewModel.getBytes());
     }
 

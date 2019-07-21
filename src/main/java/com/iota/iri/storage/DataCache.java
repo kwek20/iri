@@ -49,7 +49,7 @@ public interface DataCache<K, V> {
      * @param value The value we add, related to the key
      * @throws CacheException If writing goes wrong
      */
-    void add(Indexable key, V value) throws CacheException;
+    void add(K key, V value) throws CacheException;
 
     /**
      * Gets the maximum size of the cache.

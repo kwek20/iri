@@ -110,7 +110,7 @@ public class Tangle {
         }
 
         if (null != cache && null != out) {
-            cache.add(index, out);
+            cache.add(out, index);
         }
         return out;
     }
@@ -182,7 +182,7 @@ public class Tangle {
         }
 
         if (null != cache && null != latest) {
-            cache.add(latest.low, latest.hi);
+            cache.add(latest.hi, latest.low);
         }
         return latest;
     }
@@ -321,7 +321,7 @@ public class Tangle {
         }
 
         if (null != cache && null != out) {
-            cache.add(HashFactory.GENERIC.create(model, key), out);
+            cache.add(out, HashFactory.GENERIC.create(model, key));
         }
         return out;
     }
@@ -339,7 +339,7 @@ public class Tangle {
         }
 
         if (null != cache && null != latest) {
-            cache.add(latest.low, latest.hi);
+            cache.add(latest.hi, latest.low);
         }
         return latest;
     }
@@ -357,7 +357,7 @@ public class Tangle {
         }
 
         if (null != cache && null != latest) {
-            cache.add(latest.low, latest.hi);
+            cache.add(latest.hi, latest.low);
         }
         return latest;
     }
@@ -376,7 +376,7 @@ public class Tangle {
         }
         
         if (null != cache && null != latest) {
-            cache.add(latest.low, latest.hi);
+            cache.add(latest.hi, latest.low);
         }
         return latest;
     }

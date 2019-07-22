@@ -1,23 +1,22 @@
 package com.iota.iri.conf;
 
-import com.iota.iri.crypto.SpongeFactory;
-import com.iota.iri.model.Hash;
-import com.iota.iri.model.HashFactory;
-import com.iota.iri.utils.IotaUtils;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.apache.commons.lang3.ArrayUtils;
+import com.iota.iri.crypto.SpongeFactory;
+import com.iota.iri.model.Hash;
+import com.iota.iri.model.HashFactory;
+import com.iota.iri.utils.IotaUtils;
 
 /**
   Note: the fields in this class are being deserialized from Jackson so they must follow Java Bean convention.
@@ -944,7 +943,7 @@ public abstract class BaseIotaConfig implements IotaConfig {
         double P_PROPAGATE_REQUEST = 0.01d;
         int MWM = 14;
         int PACKET_SIZE = 1650;
-        int REQUEST_HASH_SIZE = 46;
+        int REQUEST_HASH_SIZE = 49;
         int QUEUE_SIZE = 1_000;
         double P_DROP_CACHE_ENTRY = 0.02d;
         int CACHE_SIZE_BYTES = 150_000;

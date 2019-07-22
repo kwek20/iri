@@ -215,9 +215,9 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
     @Override
     public Pair<Indexable, Persistable> latest(Class<?> model, Class<?> indexModel) throws Exception {
         synchronized (lock) {
-            for (Entry<Persistable, Indexable> entries : cache.entrySet()) {
-                if (entries.getValue().getClass().equals(indexModel) && entries.getKey().getClass().equals(model)) {
-                    return new Pair<Indexable, Persistable>(entries.getValue(), entries.getKey());
+            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+                if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
+                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
                 }
             }
         }
@@ -365,9 +365,9 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
 
     @Override
     public Pair<Indexable, Persistable> first(Class<?> model, Class<?> indexModel) throws Exception {
-        for (Entry<Persistable, Indexable> entries : cache.entrySet()) {
-            if (entries.getValue().getClass().equals(indexModel) && entries.getKey().getClass().equals(model)) {
-                return new Pair<Indexable, Persistable>(entries.getValue(), entries.getKey());
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
         }
 
@@ -390,25 +390,34 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
                 .map(entry -> entry.getValue().bytes()).collect(Collectors.toList());
     }
 
-    /**
-     * Not implemented as it is unused, returns <code>null</code>
-     * 
-     * {@inheritDoc}
-     * 
-     */
     @Override
     public Pair<Indexable, Persistable> next(Class<?> model, Indexable index) throws Exception {
+        boolean found = false;
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getValue().equals(index) && entry.getKey().getClass().equals(model)) {
+                found = true;
+            } else if (found && entry.getKey().getClass().equals(model)) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
+            }
+        }
+
         return null;
     }
 
-    /**
-     * Not implemented as it is unused, returns <code>null</code>
-     * 
-     * {@inheritDoc}
-     * 
-     */
     @Override
     public Pair<Indexable, Persistable> previous(Class<?> model, Indexable index) throws Exception {
+        boolean flip = false;
+
+        OrderedMapIterator<Persistable, Indexable> it = cache.mapIterator();
+        while (flip ? it.hasPrevious() : it.hasNext()) {
+            Persistable entry = flip ? it.previous() : it.next();
+            if (it.getValue().equals(index) && entry.getClass().equals(model)) {
+                flip = true;
+            } else if (flip && entry.getClass().equals(model)) {
+                return new Pair<Indexable, Persistable>(it.getValue(), entry);
+            }
+        }
+
         return null;
     }
 }

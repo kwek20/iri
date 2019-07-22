@@ -34,7 +34,7 @@ import com.iota.iri.utils.Pair;
  *
  * @param <T>
  */
-public class PersistenceCache implements PersistenceProvider, DataCache<Persistable, Indexable> {
+public class PersistenceCache implements PersistenceProvider, DataCache {
 
     private static final Logger log = LoggerFactory.getLogger(PersistenceCache.class);
 
@@ -227,13 +227,8 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
 
     @Override
     public Persistable seek(Class<?> model, byte[] key) throws Exception {
-        System.out.println(Arrays.toString(key));
         synchronized (lock) {
             for (Entry<Persistable, Indexable> entries : cache.entrySet()) {
-                System.out.println("----");
-                System.out.println(entries.getValue().bytes().equals(key));
-                System.out.println(Arrays.equals(entries.getValue().bytes(), key));
-                System.out.println(Arrays.toString(entries.getValue().bytes()));
                 if (Arrays.equals(entries.getValue().bytes(), key) && entries.getKey().getClass().equals(model)) {
                     return entries.getKey();
                 }
@@ -392,11 +387,16 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
 
     @Override
     public Pair<Indexable, Persistable> next(Class<?> model, Indexable index) throws Exception {
-        boolean found = false;
+        /*
+         * boolean found = false; for (Entry<Persistable, Indexable> entry :
+         * cache.entrySet()) { if (entry.getValue().equals(index) &&
+         * entry.getKey().getClass().equals(model)) { found = true; } else if (found &&
+         * entry.getKey().getClass().equals(model)) { return new Pair<Indexable,
+         * Persistable>(entry.getValue(), entry.getKey()); } }
+         */
+
         for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-            if (entry.getValue().equals(index) && entry.getKey().getClass().equals(model)) {
-                found = true;
-            } else if (found && entry.getKey().getClass().equals(model)) {
+            if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == 1) {
                 return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
         }
@@ -406,15 +406,19 @@ public class PersistenceCache implements PersistenceProvider, DataCache<Persista
 
     @Override
     public Pair<Indexable, Persistable> previous(Class<?> model, Indexable index) throws Exception {
-        boolean flip = false;
-
-        OrderedMapIterator<Persistable, Indexable> it = cache.mapIterator();
-        while (flip ? it.hasPrevious() : it.hasNext()) {
-            Persistable entry = flip ? it.previous() : it.next();
-            if (it.getValue().equals(index) && entry.getClass().equals(model)) {
-                flip = true;
-            } else if (flip && entry.getClass().equals(model)) {
-                return new Pair<Indexable, Persistable>(it.getValue(), entry);
+        /*
+         * boolean flip = false;
+         * 
+         * OrderedMapIterator<Persistable, Indexable> it = cache.mapIterator(); while
+         * (flip ? it.hasPrevious() : it.hasNext()) { Persistable entry = flip ?
+         * it.previous() : it.next(); if (it.getValue().equals(index) &&
+         * entry.getClass().equals(model)) { flip = true; } else if (flip &&
+         * entry.getClass().equals(model)) { return new Pair<Indexable,
+         * Persistable>(it.getValue(), entry); } }
+         */
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == -1) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
         }
 

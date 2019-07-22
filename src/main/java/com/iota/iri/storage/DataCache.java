@@ -6,7 +6,7 @@ package com.iota.iri.storage;
  * memory for a while, preventing duplicate read/writes.
  *
  */
-public interface DataCache<K, V> {
+public interface DataCache {
 
     /**
      * Stops the cache, which causes a call to {@link #writeAll()} and a clean
@@ -26,11 +26,13 @@ public interface DataCache<K, V> {
      * get it from our {@link PersistenceProvider}. Afterwards this will be added
      * using {@link #add(Indexable, Object)}.
      * 
+     * @param <T>
+     * 
      * @param key The key we are looking for
      * @return The value we cached
      * @throws CacheException If we couldn't find the value related to the key
      */
-    // V get(K key) throws CacheException;
+    // <T> T get(Class<T> model, Indexable index) throws Exception;
 
     /**
      * Checks if the cache contains this key. Does not check in the underlying
@@ -49,7 +51,7 @@ public interface DataCache<K, V> {
      * @param value The value we add, related to the key
      * @throws CacheException If writing goes wrong
      */
-    void add(K key, V value) throws CacheException;
+    void add(Persistable key, Indexable value) throws CacheException;
 
     /**
      * Gets the maximum size of the cache.

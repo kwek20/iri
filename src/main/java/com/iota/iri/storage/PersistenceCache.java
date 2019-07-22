@@ -42,8 +42,6 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
      */
     private static final int PERCENT_CLEAN = 5;
 
-    private Object lock = new Object();
-
     /**
      * The persistence we use to save values once they are evicted.
      */
@@ -74,7 +72,7 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
         this.persistance = persistance;
 
-        cache = new ListOrderedMap<>();
+        cache = Collections.synchronizedMap(new ListOrderedMap<>());
 
         // CacheSize divided by trytes to bytes conversion of size per transaction
         calculatedMaxSize = (int) Math
@@ -83,37 +81,35 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
     @Override
     public void add(Persistable value, Indexable key) throws CacheException {
-        synchronized (lock) {
-            if (isFullAfterAdd()) {
-                cleanUp();
-            }
-
-            cache.put(value, key);
+        if (isFullAfterAdd()) {
+            cleanUp();
         }
+
+        cache.put(value, key);
+
     }
 
     private void cleanUp() throws CacheException {
         try {
-            synchronized (lock) {
-                List<Pair<Indexable, Persistable>> listBatch = null;
-                try {
-                    listBatch = cache.entrySet().stream().limit(getNumEvictions()).map(entry -> {
-                        return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                    }).collect(Collectors.toList());
-                } catch (Exception e) {
-                    log.debug(e.getMessage());
-                    return;
-                }
-
-                // Write in batch to the database
-                persistance.saveBatch(listBatch);
-
-                // Then remove one by one
-                for (Iterator<Pair<Indexable, Persistable>> iterator = listBatch.iterator(); iterator.hasNext();) {
-                    Pair<Indexable, Persistable> pair = iterator.next();
-                    cache.remove(pair.hi, pair.low);
-                }
+            List<Pair<Indexable, Persistable>> listBatch = null;
+            try {
+                listBatch = cache.entrySet().stream().limit(getNumEvictions()).map(entry -> {
+                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
+                }).collect(Collectors.toList());
+            } catch (Exception e) {
+                log.debug(e.getMessage());
+                return;
             }
+
+            // Write in batch to the database
+            persistance.saveBatch(listBatch);
+
+            // Then remove one by one
+            for (Iterator<Pair<Indexable, Persistable>> iterator = listBatch.iterator(); iterator.hasNext();) {
+                Pair<Indexable, Persistable> pair = iterator.next();
+                cache.remove(pair.hi, pair.low);
+            }
+
         } catch (Exception e) {
             throw new CacheException(e);
         }
@@ -139,13 +135,12 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
     @Override
     public void writeAll() throws CacheException {
         try {
-            synchronized (lock) {
-                List<Pair<Indexable, Persistable>> list = cache.entrySet().stream().map(entry -> {
-                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                }).collect(Collectors.toList());
+            List<Pair<Indexable, Persistable>> list = cache.entrySet().stream().map(entry -> {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
+            }).collect(Collectors.toList());
 
-                persistance.saveBatch(list);
-            }
+            persistance.saveBatch(list);
+
         } catch (Exception e) {
             throw new CacheException(e);
         }
@@ -168,90 +163,83 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
     @Override
     public boolean save(Persistable model, Indexable index) throws Exception {
-        synchronized (lock) {
-            if (!cache.containsKey(model)) {
-                add(model, index);
-            }
+        if (!cache.containsKey(model)) {
+            add(model, index);
         }
+
         return true;
     }
 
     @Override
     public boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception {
-        synchronized (lock) {
-            cache.putAll(models.stream().collect(Collectors.toMap(pair -> pair.hi, pair -> pair.low)));
+        cache.putAll(models.stream().collect(Collectors.toMap(pair -> pair.hi, pair -> pair.low)));
 
-            if (cache.size() >= calculatedMaxSize) {
-                cleanUp();
-            }
+        if (cache.size() >= calculatedMaxSize) {
+            cleanUp();
         }
+
         return true;
     }
 
     @Override
     public boolean update(Persistable model, Indexable index, String item) throws Exception {
-        synchronized (lock) {
-            if (cache.containsKey(model)) {
-                cache.replace(model, index);
-            } else {
-                add(model, index);
-            }
+        if (cache.containsKey(model)) {
+            cache.replace(model, index);
+        } else {
+            add(model, index);
         }
+
         return true;
     }
 
     @Override
     public boolean exists(Class<?> model, Indexable key) throws Exception {
-        synchronized (lock) {
-            if (!cache.containsValue(key)) {
-                return false;
-            }
+        if (!cache.containsValue(key)) {
+            return false;
+        }
 
-            List<Persistable> keys = getAllKeysForValue(cache, key);
-            for (Persistable persistable : keys) {
-                if (persistable.getClass().equals(model)) {
-                    return true;
-                }
+        List<Persistable> keys = getAllKeysForValue(cache, key);
+        for (Persistable persistable : keys) {
+            if (persistable.getClass().equals(model)) {
+                return true;
             }
         }
+
         return false;
     }
 
     @Override
     public Pair<Indexable, Persistable> latest(Class<?> model, Class<?> indexModel) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
-                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
         }
+
 
         return null;
     }
 
     @Override
     public Persistable seek(Class<?> model, byte[] key) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (Arrays.equals(entry.getValue().bytes(), key) && entry.getKey().getClass().equals(model)) {
-                    return entry.getKey();
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (Arrays.equals(entry.getValue().bytes(), key) && entry.getKey().getClass().equals(model)) {
+                return entry.getKey();
             }
         }
+
 
         return null;
     }
 
     @Override
     public Persistable get(Class<?> model, Indexable index) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (entry.getValue().equals(index) && entry.getKey().getClass().equals(model)) {
-                    return entry.getKey();
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getValue().equals(index) && entry.getKey().getClass().equals(model)) {
+                return entry.getKey();
             }
         }
+
 
         return null;
     }
@@ -263,11 +251,10 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
      */
     @Override
     public Set<Indexable> keysStartingWith(Class<?> modelClass, byte[] value) {
-        synchronized (lock) {
-            return cache.entrySet().parallelStream().filter(e -> e.getKey().getClass().equals(modelClass))
+        return cache.entrySet().parallelStream().filter(e -> e.getKey().getClass().equals(modelClass))
                 .filter(e -> keyStartsWithValue(value, e.getValue().bytes())).map(e -> e.getValue())
                 .collect(Collectors.toSet());
-        }
+
     }
 
     /**
@@ -319,28 +306,25 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
     @Override
     public void delete(Class<?> model, Indexable index) throws Exception {
-        synchronized (lock) {
-            cache.entrySet()
-                    .removeIf(entry -> entry.getValue().equals(index) && entry.getKey().getClass().equals(model));
-        }
+        cache.entrySet().removeIf(entry -> entry.getValue().equals(index) && entry.getKey().getClass().equals(model));
+
     }
 
     @Override
     public void deleteBatch(Collection<Pair<Indexable, ? extends Class<? extends Persistable>>> models)
             throws Exception {
-        synchronized (lock) {
-            Iterator<Entry<Persistable, Indexable>> it = cache.entrySet().iterator();
+        Iterator<Entry<Persistable, Indexable>> it = cache.entrySet().iterator();
 
-            while (it.hasNext() && !models.isEmpty()) {
-                Entry<Persistable, Indexable> next = it.next();
-                Pair<Indexable, Class<? extends Persistable>> pair = new Pair<Indexable, Class<? extends Persistable>>(
-                        next.getValue(), next.getKey().getClass());
-                if (models.contains(pair)) {
-                    it.remove();
-                    models.remove(pair);
-                }
+        while (it.hasNext() && !models.isEmpty()) {
+            Entry<Persistable, Indexable> next = it.next();
+            Pair<Indexable, Class<? extends Persistable>> pair = new Pair<Indexable, Class<? extends Persistable>>(
+                    next.getValue(), next.getKey().getClass());
+            if (models.contains(pair)) {
+                it.remove();
+                models.remove(pair);
             }
         }
+
     }
 
     /**
@@ -356,59 +340,53 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
     @Override
     public long count(Class<?> model) throws Exception {
-        synchronized (lock) {
-            return cache.keySet().stream().filter(p -> p.getClass().equals(model)).count();
-        }
+        return cache.keySet().stream().filter(p -> p.getClass().equals(model)).count();
+
     }
 
     @Override
     public Pair<Indexable, Persistable> first(Class<?> model, Class<?> indexModel) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
-                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getValue().getClass().equals(indexModel) && entry.getKey().getClass().equals(model)) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
+
         }
         return null;
     }
 
     @Override
     public void clear(Class<?> column) throws Exception {
-        synchronized (lock) {
-            cache.keySet().removeIf(value -> value.getClass().equals(column));
-        }
+        cache.keySet().removeIf(value -> value.getClass().equals(column));
+
     }
 
     @Override
     public List<byte[]> loadAllKeysFromTable(Class<? extends Persistable> model) {
-        synchronized (lock) {
-            return cache.entrySet().stream().filter(entry -> entry.getKey().getClass().equals(model))
+        return cache.entrySet().stream().filter(entry -> entry.getKey().getClass().equals(model))
                 .map(entry -> entry.getValue().bytes()).collect(Collectors.toList());
-        }
+
     }
 
     @Override
     public Pair<Indexable, Persistable> next(Class<?> model, Indexable index) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == 1) {
-                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == 1) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
+
         }
         return null;
     }
 
     @Override
     public Pair<Indexable, Persistable> previous(Class<?> model, Indexable index) throws Exception {
-        synchronized (lock) {
-            for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
-                if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == -1) {
-                    return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
-                }
+        for (Entry<Persistable, Indexable> entry : cache.entrySet()) {
+            if (entry.getKey().getClass().equals(model) && entry.getValue().compareTo(index) == -1) {
+                return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
             }
         }
+
         return null;
     }
 

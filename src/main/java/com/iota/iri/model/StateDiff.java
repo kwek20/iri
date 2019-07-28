@@ -1,12 +1,13 @@
 package com.iota.iri.model;
 
-import com.iota.iri.storage.Persistable;
-import com.iota.iri.utils.Serializer;
-import org.apache.commons.lang3.ArrayUtils;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.lang3.ArrayUtils;
+
+import com.iota.iri.storage.Persistable;
+import com.iota.iri.utils.Serializer;
 
 /**
  * Creates a persistable State object, used to map addresses with values in the DB and snapshots.
@@ -57,5 +58,10 @@ public class StateDiff implements Persistable {
     @Override
     public boolean merge() {
         return false;
+    }
+
+    @Override
+    public boolean exists() {
+        return null != state;
     }
 }

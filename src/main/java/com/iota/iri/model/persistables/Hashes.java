@@ -1,12 +1,13 @@
 package com.iota.iri.model.persistables;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import org.apache.commons.lang3.ArrayUtils;
+
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
 import com.iota.iri.storage.Persistable;
-import org.apache.commons.lang3.ArrayUtils;
-
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 /**
  * Represents a persistable set of {@link Hash} to act as a container for hash identifiers. These are
@@ -65,5 +66,10 @@ public class Hashes implements Persistable {
     @Override
     public boolean merge() {
         return true;
+    }
+
+    @Override
+    public boolean exists() {
+        return null != set;
     }
 }

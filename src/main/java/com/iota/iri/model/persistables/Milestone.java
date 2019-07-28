@@ -1,11 +1,12 @@
 package com.iota.iri.model.persistables;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
 import com.iota.iri.model.IntegerIndex;
 import com.iota.iri.storage.Persistable;
 import com.iota.iri.utils.Serializer;
-import org.apache.commons.lang3.ArrayUtils;
 
 /**
  * This stores a hash identifier for a <tt>Milestone</tt> transaction, indexed by a unique <tt>IntegerIndex</tt>
@@ -57,5 +58,10 @@ public class Milestone implements Persistable {
     @Override
     public boolean merge() {
         return false;
+    }
+
+    @Override
+    public boolean exists() {
+        return null != index && null != hash;
     }
 }

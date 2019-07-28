@@ -1,12 +1,12 @@
 package com.iota.iri.model.persistables;
 
+import java.nio.ByteBuffer;
+
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.model.HashFactory;
 import com.iota.iri.storage.Persistable;
 import com.iota.iri.utils.Serializer;
-
-import java.nio.ByteBuffer;
 
 
 /**
@@ -218,5 +218,10 @@ public class Transaction implements Persistable {
     @Override
     public boolean merge() {
         return false;
+    }
+
+    @Override
+    public boolean exists() {
+        return null != bytes;
     }
 }

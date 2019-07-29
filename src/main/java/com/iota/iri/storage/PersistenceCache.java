@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.iota.iri.controllers.TransactionViewModel;
+import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.utils.Pair;
 
 /**
@@ -84,20 +85,13 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
         if (value.merge() || !value.exists()) {
             // These are recalculated every time!
             return;
-        }
-
-        if (isFullAfterAdd()) {
+        } else if (!value.getClass().equals(Transaction.class)) {
+            return;
+        } else if (isFullAfterAdd()) {
             cleanUp();
         }
 
         synchronized (cache) {
-            if (cache.containsKey(value)) {
-                int test = 1;
-            }
-            if (key == null) {
-                System.out.println("Added a null!");
-            }
-
             cache.put(value, key);
         }
     }

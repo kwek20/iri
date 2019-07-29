@@ -181,7 +181,7 @@ public class Tangle {
             }
         }
 
-        if (null != cache && null != latest) {
+        if (null != cache && null != latest && null != latest.hi) {
             cache.add(latest.hi, latest.low);
         }
         return latest;
@@ -338,7 +338,7 @@ public class Tangle {
             }
         }
 
-        if (null != cache && null != latest) {
+        if (null != cache && null != latest && null != latest.hi) {
             cache.add(latest.hi, latest.low);
         }
         return latest;
@@ -356,7 +356,7 @@ public class Tangle {
             }
         }
 
-        if (null != cache && null != latest) {
+        if (null != cache && null != latest && null != latest.hi) {
             cache.add(latest.hi, latest.low);
         }
         return latest;
@@ -375,7 +375,7 @@ public class Tangle {
             }
         }
         
-        if (null != cache && null != latest) {
+        if (null != cache && null != latest && null != latest.hi) {
             cache.add(latest.hi, latest.low);
         }
         return latest;

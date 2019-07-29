@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.iota.iri.controllers.TransactionViewModel;
-import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.utils.Pair;
 
 /**
@@ -82,13 +81,8 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
 
     @Override
     public void add(Persistable value, Indexable key) throws CacheException {
-        /*
-         * try { if (null == value || null == key) { // What? We dont want this, dont
-         * cache return; } value.bytes(); key.bytes(); } catch (Exception e) { // No
-         * data in the database, we dont cache return; }
-         */
-
-        if (!value.getClass().equals(Transaction.class)) {
+        if (value.merge() || !value.exists()) {
+            // These are recalculated every time!
             return;
         }
 
@@ -97,6 +91,13 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
         }
 
         synchronized (cache) {
+            if (cache.containsKey(value)) {
+                int test = 1;
+            }
+            if (key == null) {
+                System.out.println("Added a null!");
+            }
+
             cache.put(value, key);
         }
     }
@@ -115,24 +116,17 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
                 return;
             }
 
-            for (Pair<Indexable, Persistable> pair : listBatch) {
-                try {
-                    if (pair.hi.exists()) {
-                        persistance.save(pair.hi, pair.low);
-                    }
-                } catch (Exception e) {
-                    throw new CacheException(e);
-                }
+            try {
+                persistance.saveBatch(listBatch);
+            } catch (Exception e) {
+                throw new CacheException(e);
             }
 
-            // Write in batch to the database
-            // persistance.saveBatch(listBatch);
-
             // Then remove one by one
-            for (Iterator<Pair<Indexable, Persistable>> iterator = listBatch.iterator(); iterator.hasNext();) {
-                Pair<Indexable, Persistable> pair = iterator.next();
-                synchronized (cache) {
-                    cache.remove(pair.hi, pair.low);
+            synchronized (cache) {
+                for (Iterator<Pair<Indexable, Persistable>> iterator = listBatch.iterator(); iterator.hasNext();) {
+                    iterator.next();
+                    iterator.remove();
                 }
             }
 
@@ -164,6 +158,9 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
             List<Pair<Indexable, Persistable>> list;
             synchronized (cache) {
                 list = cache.entrySet().stream().map(entry -> {
+                    if (entry.getValue() == null || entry.getKey() == null) {
+                        System.out.println("WHOA CALM DOWN THERE");
+                    }
                     return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
                 }).collect(Collectors.toList());
             }

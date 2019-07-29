@@ -471,10 +471,10 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
                 .setFilter(bloomFilter)
                 .setCacheNumShardBits(2)
                 .setBlockSizeDeviation(10)
-                .setBlockRestartInterval(16)
-                .setBlockCacheSize(cacheSize * SizeUnit.KB)
+                .setBlockRestartInterval(16);
+                /*.setBlockCacheSize(cacheSize * SizeUnit.KB)
                 .setBlockCacheCompressedNumShardBits(10)
-                .setBlockCacheCompressedSize(32 * SizeUnit.KB);
+                .setBlockCacheCompressedSize(32 * SizeUnit.KB);*/
 
             options.setAllowConcurrentMemtableWrite(true);
 

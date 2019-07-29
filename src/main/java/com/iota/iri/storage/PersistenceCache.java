@@ -79,14 +79,21 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
         calculatedMaxSize = (int) Math
                 .ceil(cacheSizeInBytes / (TransactionViewModel.SIZE * 3 * Math.log(3) / Math.log(2) / 8));
     }
-
-    @Override
-    public void add(Persistable value, Indexable key) throws CacheException {
+    
+    private boolean shouldAdd(Persistable value, Indexable key) {
         if (value.merge() || !value.exists()) {
             // These are recalculated every time!
-            return;
+            return false;
         } else if (!value.getClass().equals(Transaction.class)) {
-            return;
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public boolean add(Persistable value, Indexable key) throws CacheException {
+        if (!shouldAdd(value, key)) {
+            return false;
         } else if (isFullAfterAdd()) {
             cleanUp();
         }
@@ -94,6 +101,7 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
         synchronized (cache) {
             cache.put(value, key);
         }
+        return true;
     }
 
     private void cleanUp() throws CacheException {
@@ -152,9 +160,6 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
             List<Pair<Indexable, Persistable>> list;
             synchronized (cache) {
                 list = cache.entrySet().stream().map(entry -> {
-                    if (entry.getValue() == null || entry.getKey() == null) {
-                        System.out.println("WHOA CALM DOWN THERE");
-                    }
                     return new Pair<Indexable, Persistable>(entry.getValue(), entry.getKey());
                 }).collect(Collectors.toList());
             }
@@ -185,8 +190,8 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
     @Override
     public boolean save(Persistable model, Indexable index) throws Exception {
         synchronized (cache) {
-            if (cache.containsKey(model)) {
-                add(model, index);
+            if (!cache.containsKey(model)) {
+                return add(model, index);
             }
         }
         return true;
@@ -195,7 +200,8 @@ public class PersistenceCache implements PersistenceProvider, DataCache {
     @Override
     public boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception {
         synchronized (cache) {
-            cache.putAll(models.stream().collect(Collectors.toMap(pair -> pair.hi, pair -> pair.low)));
+            cache.putAll(models.stream().filter(p -> shouldAdd(p.hi, p.low)).collect(Collectors.toMap(pair -> pair.hi, pair -> pair.low)));
+            persistance.saveBatch(models.stream().filter(p -> shouldAdd(p.hi, p.low)).collect(Collectors.toList()));
         }
 
         if (cache.size() >= calculatedMaxSize) {

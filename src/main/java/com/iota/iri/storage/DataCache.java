@@ -42,16 +42,17 @@ public interface DataCache {
      * @return <code>true</code> if it is cached, otherwise <code>false</code>
      */
     // boolean contains(K key);
-
+    
     /**
      * Add the key/value pair to the cache. If the cache is full after this add, the
      * cache will be cleaned before adding.
      * 
      * @param key   The key we are adding
      * @param value The value we add, related to the key
+     * @return <code>true</code> if it was added to the cache
      * @throws CacheException If writing goes wrong
      */
-    void add(Persistable key, Indexable value) throws CacheException;
+    boolean add(Persistable key, Indexable value) throws CacheException;
 
     /**
      * Gets the maximum size of the cache.

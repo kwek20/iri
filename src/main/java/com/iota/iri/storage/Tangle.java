@@ -117,7 +117,7 @@ public class Tangle {
 
     public Boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception {
         if (null != cache) {
-            return cache.saveBatch(models);
+            //return cache.saveBatch(models);
         }
 
         boolean exists = false;
@@ -133,7 +133,9 @@ public class Tangle {
 
     public Boolean save(Persistable model, Indexable index) throws Exception {
         if (null != cache) {
-            return cache.save(model, index);
+            if (cache.save(model, index)) {
+                return true;
+            }
         }
 
         boolean exists = false;
@@ -145,7 +147,6 @@ public class Tangle {
             }
         }
         return exists;
-
     }
 
     public void deleteBatch(Collection<Pair<Indexable, ? extends Class<? extends Persistable>>> models)

@@ -61,8 +61,12 @@ public class CumulativeWeightCalculatorTest {
         snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
         dbFolder.create();
         logFolder.create();
-        tangle.addPersistenceProvider( new RocksDBPersistenceProvider(
-                dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000, Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY));
+        RocksDBPersistenceProvider rocksDBPersistenceProvider = new RocksDBPersistenceProvider(
+                dbFolder.getRoot().getAbsolutePath(), logFolder.getRoot().getAbsolutePath(),1000, Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
+        
+        tangle.addPersistenceProvider(rocksDBPersistenceProvider);
+        //tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
+        
         tangle.init();
         cumulativeWeightCalculator = new CumulativeWeightCalculator(tangle, snapshotProvider);
     }

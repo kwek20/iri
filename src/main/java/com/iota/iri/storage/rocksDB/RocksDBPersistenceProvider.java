@@ -304,12 +304,7 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
                 if (value.merge()) {
                     writeBatch.merge(handle, key.bytes(), value.bytes());
                 } else {
-                    try {
-                        writeBatch.put(handle, key.bytes(), value.bytes());
-                    } catch (Exception e) {
-                        System.out.println(e);
-                        throw e;
-                    }
+                    writeBatch.put(handle, key.bytes(), value.bytes());
                 }
                 if (referenceHandle != null) {
                     writeBatch.put(referenceHandle, key.bytes(), value.metadata());
@@ -472,9 +467,6 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
                 .setCacheNumShardBits(2)
                 .setBlockSizeDeviation(10)
                 .setBlockRestartInterval(16);
-                /*.setBlockCacheSize(cacheSize * SizeUnit.KB)
-                .setBlockCacheCompressedNumShardBits(10)
-                .setBlockCacheCompressedSize(32 * SizeUnit.KB);*/
 
             options.setAllowConcurrentMemtableWrite(true);
 

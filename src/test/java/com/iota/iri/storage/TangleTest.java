@@ -37,7 +37,7 @@ public class TangleTest {
                 Tangle.COLUMN_FAMILIES, Tangle.METADATA_COLUMN_FAMILY);
         tangle.addPersistenceProvider(rocksDBPersistenceProvider);
 
-        tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
+        //tangle.setCache(new PersistenceCache(rocksDBPersistenceProvider, 1000 * 1000));
         tangle.init();
         snapshotProvider = new SnapshotProviderImpl().init(new MainnetConfig());
     }

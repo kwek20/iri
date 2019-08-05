@@ -32,7 +32,7 @@ public interface DataCache {
      * @return The value we cached
      * @throws CacheException If we couldn't find the value related to the key
      */
-    // <T> T get(Class<T> model, Indexable index) throws Exception;
+    Persistable get(Class<?> model, Indexable index) throws Exception;
 
     /**
      * Checks if the cache contains this key. Does not check in the underlying

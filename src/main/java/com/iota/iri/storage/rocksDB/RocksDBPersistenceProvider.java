@@ -289,7 +289,7 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
     }
 
     @Override
-    public boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception {
+    public boolean saveBatch(Collection<Pair<Indexable, Persistable>> models) throws Exception {
         try (WriteBatch writeBatch = new WriteBatch();
              WriteOptions writeOptions = new WriteOptions()) {
 

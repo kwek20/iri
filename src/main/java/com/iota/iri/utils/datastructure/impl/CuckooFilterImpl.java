@@ -1,11 +1,11 @@
 package com.iota.iri.utils.datastructure.impl;
 
-import com.iota.iri.utils.BitSetUtils;
-import com.iota.iri.utils.datastructure.CuckooFilter;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.BitSet;
+
+import com.iota.iri.utils.BitSetUtils;
+import com.iota.iri.utils.datastructure.CuckooFilter;
 
 /**
  * This class implements the basic contract of the {@link CuckooFilter}.
@@ -396,7 +396,6 @@ public class CuckooFilterImpl implements CuckooFilter {
     private int getIndex(BitSet fingerPrint, long oldIndex) {
         // calculate the hash of the finger print (partial-key cuckoo hashing)
         byte[] fingerPrintHash = hashFunction.digest(BitSetUtils.convertBitSetToByteArray(fingerPrint));
-
         // initialize the new address with an empty bit sequence
         long index = 0;
 

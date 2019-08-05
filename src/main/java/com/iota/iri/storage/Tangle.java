@@ -108,7 +108,7 @@ public class Tangle {
                 break;
             }
         }
-
+        
         if (null != cache && null != out) {
             cache.add(out, index);
         }

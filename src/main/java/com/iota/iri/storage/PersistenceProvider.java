@@ -1,10 +1,10 @@
 package com.iota.iri.storage;
 
-import com.iota.iri.utils.Pair;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+
+import com.iota.iri.utils.Pair;
 
 /**
  * Created by paul on 3/2/17 for iri.
@@ -40,7 +40,7 @@ public interface PersistenceProvider {
 
     Pair<Indexable, Persistable> first(Class<?> model, Class<?> indexModel) throws Exception;
 
-    boolean saveBatch(List<Pair<Indexable, Persistable>> models) throws Exception;
+    boolean saveBatch(Collection<Pair<Indexable, Persistable>> collection) throws Exception;
 
     /**
      * Atomically delete all {@code models}.

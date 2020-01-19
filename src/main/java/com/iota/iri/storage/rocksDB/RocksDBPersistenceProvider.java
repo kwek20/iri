@@ -15,44 +15,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.rocksdb.BackupEngine;
-import org.rocksdb.BackupableDBOptions;
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.Cache;
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.Env;
-import org.rocksdb.LRUCache;
-import org.rocksdb.MergeOperator;
-import org.rocksdb.OptionsUtil;
-import org.rocksdb.Priority;
-import org.rocksdb.RestoreOptions;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksEnv;
-import org.rocksdb.RocksIterator;
-import org.rocksdb.SstFileManager;
-import org.rocksdb.StringAppendOperator;
-import org.rocksdb.WriteBatch;
-import org.rocksdb.WriteOptions;
+import org.rocksdb.*;
 import org.rocksdb.util.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -514,7 +482,6 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
             
             db = RocksDB.open(options, path, columnFamilyDescriptors, columnFamilyHandles);
             db.enableFileDeletions(true);
-
             initClassTreeMap(columnFamilyDescriptors);
 
         } catch (Exception e) {
@@ -632,15 +599,13 @@ public class RocksDBPersistenceProvider implements PersistenceProvider {
         //Defaults we always need to set
         options.setSstFileManager(sstFileManager);
         
-        if (!(BaseIotaConfig.Defaults.DB_LOG_PATH.equals(logPath) || 
-                TestnetConfig.Defaults.DB_LOG_PATH.equals(logPath) ||
-                BaseIotaConfig.Defaults.SPENT_ADDRESSES_DB_LOG_PATH.equals(logPath)) 
+        if (!(BaseIotaConfig.Defaults.DB_LOG_PATH.equals(logPath) || TestnetConfig.Defaults.DB_LOG_PATH.equals(logPath))
                 && logPath != null) {
-            
+
             if (!options.dbLogDir().equals("")) {
-                log.warn("Defined a db log path in config and commandline; Using the command line setting."); 
+                log.warn("Defined a db log path in config and commandline; Using the command line setting.");
             }
-            
+
             options.setDbLogDir(logPath);
         }
 

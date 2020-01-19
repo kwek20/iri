@@ -1,15 +1,5 @@
 package com.iota.iri.service.snapshot.impl;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.iota.iri.conf.SnapshotConfig;
 import com.iota.iri.controllers.ApproveeViewModel;
 import com.iota.iri.controllers.MilestoneViewModel;
@@ -17,11 +7,7 @@ import com.iota.iri.controllers.StateDiffViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
 import com.iota.iri.service.milestone.LatestMilestoneTracker;
-import com.iota.iri.service.snapshot.Snapshot;
-import com.iota.iri.service.snapshot.SnapshotException;
-import com.iota.iri.service.snapshot.SnapshotMetaData;
-import com.iota.iri.service.snapshot.SnapshotProvider;
-import com.iota.iri.service.snapshot.SnapshotService;
+import com.iota.iri.service.snapshot.*;
 import com.iota.iri.service.transactionpruning.TransactionPruner;
 import com.iota.iri.service.transactionpruning.TransactionPruningException;
 import com.iota.iri.service.transactionpruning.jobs.MilestonePrunerJob;
@@ -31,6 +17,16 @@ import com.iota.iri.utils.dag.DAGHelper;
 import com.iota.iri.utils.dag.TraversalException;
 import com.iota.iri.utils.log.ProgressLogger;
 import com.iota.iri.utils.log.interval.IntervalProgressLogger;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -207,7 +203,7 @@ public class SnapshotServiceImpl implements SnapshotService {
         
         Snapshot newSnapshot = generateSnapshot(latestMilestoneTracker, targetMilestone);
 
-        persistLocalSnapshot(snapshotProvider, newSnapshot, config);
+        persistLocalSnapshot(snapshotProvider, newSnapshot);
         if (transactionPruner != null) {
             cleanupExpiredSolidEntryPoints(tangle, snapshotProvider.getInitialSnapshot().getSolidEntryPoints(),
                 newSnapshot.getSolidEntryPoints(), transactionPruner);
@@ -390,7 +386,7 @@ public class SnapshotServiceImpl implements SnapshotService {
             snapshot.unlockWrite();
         }
     }
-    
+
     /**
      * <p>
      * This method determines the milestone that shall be used for the local snapshot.
@@ -400,8 +396,9 @@ public class SnapshotServiceImpl implements SnapshotService {
      * solid milestone index and retrieving the next milestone before this point.
      * </p>
      * 
-     * @param tangle Tangle object which acts as a database interface
+     * @param tangle           Tangle object which acts as a database interface
      * @param snapshotProvider data provider for the {@link Snapshot}s that are relevant for the node
+     * @param lowestIndex      used to find target milestone
      * @return the target milestone for the local snapshot
      * @throws SnapshotException if anything goes wrong while determining the target milestone for the local snapshot
      */
@@ -498,13 +495,12 @@ public class SnapshotServiceImpl implements SnapshotService {
      * 
      * @param snapshotProvider data provider for the {@link Snapshot}s that are relevant for the node
      * @param newSnapshot Snapshot that shall be persisted
-     * @param config important snapshot related configuration parameters
      * @throws SnapshotException if anything goes wrong while persisting the snapshot
      */
-    private void persistLocalSnapshot(SnapshotProvider snapshotProvider, Snapshot newSnapshot, SnapshotConfig config)
+    private void persistLocalSnapshot(SnapshotProvider snapshotProvider, Snapshot newSnapshot)
             throws SnapshotException {
 
-        snapshotProvider.writeSnapshotToDisk(newSnapshot, config.getLocalSnapshotsBasePath());
+        snapshotProvider.persistSnapshot(newSnapshot);
 
         snapshotProvider.getLatestSnapshot().lockWrite();
         snapshotProvider.getLatestSnapshot().setInitialHash(newSnapshot.getHash());

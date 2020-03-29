@@ -2,8 +2,19 @@ package com.iota.iri.controllers;
 
 import com.iota.iri.cache.Cache;
 import com.iota.iri.cache.CacheConfiguration;
-import com.iota.iri.model.*;
-import com.iota.iri.model.persistables.*;
+import com.iota.iri.model.AddressHash;
+import com.iota.iri.model.BundleHash;
+import com.iota.iri.model.Hash;
+import com.iota.iri.model.HashFactory;
+import com.iota.iri.model.ObsoleteTagHash;
+import com.iota.iri.model.TagHash;
+import com.iota.iri.model.TransactionHash;
+import com.iota.iri.model.persistables.Address;
+import com.iota.iri.model.persistables.Approvee;
+import com.iota.iri.model.persistables.Bundle;
+import com.iota.iri.model.persistables.ObsoleteTag;
+import com.iota.iri.model.persistables.Tag;
+import com.iota.iri.model.persistables.Transaction;
 import com.iota.iri.service.snapshot.Snapshot;
 import com.iota.iri.service.validation.TransactionValidator;
 import com.iota.iri.storage.Indexable;
@@ -12,7 +23,14 @@ import com.iota.iri.storage.Tangle;
 import com.iota.iri.utils.Converter;
 import com.iota.iri.utils.Pair;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.Stack;
 
 /**
  * Controller class for {@link Transaction} sets. A {@link TransactionViewModel} stores a {@link HashesViewModel} for
@@ -88,6 +106,16 @@ public class TransactionViewModel {
 
     // True if should the tvm should be persisted to DB upon cache release. False otherwise.
     private boolean shouldPersist = false;
+    
+    /**
+     * The milestone bundle with the lowest index that marked any of the Approved Transaction Roots as seen.
+     */
+    private long oldestTxRootSnapshot = 0;
+    
+    /**
+     * The milestone bundle with the highest index that marked any of the Approved Transaction Roots as seen.
+     */
+    private long youngestTxRootSnapshot = 0;
 
     /**
      * Populates the meta data of the {@link TransactionViewModel}. If the controller {@link Hash} identifier is null,
@@ -319,6 +347,44 @@ public class TransactionViewModel {
         }
         cachePut(tangle, this, hash);
         tangle.updateMessageQueueProvider(transaction, hash, item);
+        
+        updateQuickMilestoneRoot(tangle);
+    }
+
+    private boolean updateQuickMilestoneRoot(Tangle tangle) throws Exception {
+        if(oldestTxRootSnapshot != 0 && oldestTxRootSnapshot != 0) {
+            //return false;
+        }
+        
+        boolean changed = false;
+        
+        long oldest, youngest;
+        if (getTrunkTransaction(tangle) != null) {
+            oldest = getTrunkTransaction(tangle).getOldestTxRootSnapshot();
+            youngest = getTrunkTransaction(tangle).getYoungestTxRootSnapshot();
+            if (oldest > 0 && getOldestTxRootSnapshot() > oldest) {
+                setOldestTxRootSnapshot(oldest);
+                changed = true;
+            }
+            if (youngest > 0 && getYoungestTxRootSnapshot() > youngest) {
+                setYoungestTxRootSnapshot(oldest);
+                changed = true;
+            }
+        }
+        
+        if (getBranchTransaction(tangle) != null) {
+            oldest = getBranchTransaction(tangle).getOldestTxRootSnapshot();
+            youngest = getBranchTransaction(tangle).getYoungestTxRootSnapshot();
+            if (oldest > 0 && getOldestTxRootSnapshot() > oldest) {
+                setOldestTxRootSnapshot(oldest);
+                changed = true;
+            }
+            if (youngest > 0 && getYoungestTxRootSnapshot() > youngest) {
+                setYoungestTxRootSnapshot(oldest);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     /**
@@ -1083,4 +1149,112 @@ public class TransactionViewModel {
         this.shouldPersist = shouldPersist;
     }
 
+    /**
+     * Get the youngest milestone index seen through this transaction though the parent transactions
+     * 
+     * @return The youngest milestone index seen through this transaction
+     */
+    public long getYoungestTxRootSnapshot() {
+        if (isMilestone()) {
+            return transaction.snapshot;
+        }
+        
+        return youngestTxRootSnapshot;
+    }
+    
+    /**
+     * Sets the youngest milestone index for this transaction
+     * 
+     * @param youngestTxRootSnapshot The milestone index to set
+     */
+    public void setYoungestTxRootSnapshot(long youngestTxRootSnapshot) {
+        System.out.println("Setting youngest to: " + youngestTxRootSnapshot);
+        this.youngestTxRootSnapshot = youngestTxRootSnapshot;
+    }
+    
+    /**
+     * Get the oldest milestone index seen through this transaction though the parent transactions
+     * 
+     * @return The oldest milestone index seen through this transaction
+     */
+    public long getOldestTxRootSnapshot() {
+        if (isMilestone()) {
+            return transaction.snapshot;
+        }
+        
+        return oldestTxRootSnapshot;
+    }
+    
+    /**
+     * Sets the oldest milestone index for this transaction
+     * 
+     * @param oldestTxRootSnapshot The milestone index to set
+     */
+    public void setOldestTxRootSnapshot(long oldestTxRootSnapshot) {
+        System.out.println("Setting oldest to: " + oldestTxRootSnapshot);
+        this.oldestTxRootSnapshot = oldestTxRootSnapshot;
+    }
+
+    public void calculateTransactionRoots(Tangle tangle) {
+        List<Hash> seenTx = new ArrayList<>();
+        ArrayDeque<Hash> downQueue = new ArrayDeque<Hash>();
+        downQueue.add(getHash());
+        
+        
+        TransactionViewModel tvm = null;
+        Hash next = null;
+        
+        try {
+            while ((next = downQueue.peekLast()) != null) {
+                // Have we been here before?
+                if (seenTx.contains(next)) {
+                    downQueue.pollLast();
+                }
+                
+                // We stop at a milestone, as it always has an index set
+                // However we cannot guarantee we know its a milestone yet as that is determined
+                // in another thread async
+                tvm = TransactionViewModel.fromHash(tangle, next);
+                if (tvm.isMilestone()) {
+                    downQueue.pollLast();
+                    continue;
+                }
+                
+                TransactionViewModel trunk = tvm.getTrunkTransaction(tangle);
+                TransactionViewModel branch = tvm.getBranchTransaction(tangle);
+                boolean done = true;
+                
+                long youngest = Math.max(trunk.getYoungestTxRootSnapshot(), branch.getYoungestTxRootSnapshot());
+                if (youngest > 0) {
+                    tvm.setYoungestTxRootSnapshot(youngest);
+                } else {
+                    done = false;
+                }
+                
+                long oldest = Math.min(trunk.getOldestTxRootSnapshot(), branch.getOldestTxRootSnapshot());
+                if (oldest > 0) {
+                    tvm.setOldestTxRootSnapshot(oldest);
+                } else {
+                    done = false;
+                }
+                
+                if (!done) {
+                    // Missing data
+                    if (!downQueue.contains(trunk.getHash())) {
+                        downQueue.add(trunk.getHash());
+                    }
+                    if (!downQueue.contains(branch.getHash())) {
+                        downQueue.add(branch.getHash());
+                    }
+                } else {
+                    // We are filled up
+                    downQueue.pollLast();
+                    seenTx.add(next);
+                }
+            }
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
 }

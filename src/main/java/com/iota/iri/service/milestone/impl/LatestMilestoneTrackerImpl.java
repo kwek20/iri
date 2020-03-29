@@ -2,6 +2,7 @@ package com.iota.iri.service.milestone.impl;
 
 import com.iota.iri.conf.IotaConfig;
 import com.iota.iri.controllers.AddressViewModel;
+import com.iota.iri.controllers.ApproveeViewModel;
 import com.iota.iri.controllers.MilestoneViewModel;
 import com.iota.iri.controllers.TransactionViewModel;
 import com.iota.iri.model.Hash;
@@ -19,8 +20,9 @@ import com.iota.iri.utils.thread.SilentScheduledExecutorService;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -199,6 +201,11 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
                         }
 
                         transaction.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
+                        
+                        // First time, the milestone is old anyway, so no need to process
+                        if (!firstRun) {
+                            updateRoots(transaction.getHash(), milestoneIndex);
+                        }
                     break;
 
                     case INCOMPLETE:
@@ -216,6 +223,34 @@ public class LatestMilestoneTrackerImpl implements LatestMilestoneTracker {
             return true;
         } catch (Exception e) {
             throw new MilestoneException("unexpected error while analyzing the " + transaction, e);
+        }
+    }
+
+    private void updateRoots(Hash msTransaction, int milestoneIndex) {
+        Queue<Hash> toUpdate = new ArrayDeque<Hash>();
+        toUpdate.add(msTransaction);
+        
+        TransactionViewModel tvm = null;
+        Hash next = null;
+        
+        try {
+            while ((next = toUpdate.poll()) != null) {
+                
+                Set<Hash> hashes;
+                
+                    hashes = ApproveeViewModel.load(tangle, next).getHashes();
+                
+                for (Hash hash : hashes) {
+                    tvm = TransactionViewModel.fromHash(tangle, hash);
+                    if (tvm.getYoungestTxRootSnapshot() < milestoneIndex) {
+                        tvm.setYoungestTxRootSnapshot(milestoneIndex);
+                    }
+                }
+                toUpdate.addAll(hashes);
+            }
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 
